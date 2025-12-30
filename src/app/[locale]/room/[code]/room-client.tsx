@@ -11,10 +11,47 @@ import clsx from "clsx";
 import { RoomState } from "@/lib/game/types";
 import { useTranslations } from "next-intl";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { LanguageToggle } from "@/components/ui/language-toggle";
+import { calculateNewDistribution } from "@/lib/distribution";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Progress } from "@/components/ui/progress";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  List,
+  Tag,
+  Eye,
+  Search,
+  ArrowUpAZ,
+  ArrowDownAZ,
+  ArrowDownWideNarrow,
+  ArrowUpNarrowWide,
+} from "lucide-react";
 
 interface PageProps {
   params: Promise<{ code: string }>;
@@ -25,6 +62,7 @@ interface RoomClientProps {
   collections: {
     id: string;
     name: string;
+    description: string | null;
     creator: { name: string | null; username: string | null };
     _count: { questions: number };
   }[];
@@ -56,11 +94,11 @@ export default function RoomClient({
   const [playerToken, setPlayerToken] = useState<string>("");
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
 
-  const timerRef = useRef<HTMLDivElement>(null);
+  const [progress, setProgress] = useState(100);
   const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!room || !timerRef.current) return;
+    if (!room) return;
 
     const updateTimer = () => {
       if (room.phase === "question") {
@@ -80,17 +118,14 @@ export default function RoomClient({
           100,
           Math.max(0, (remaining / duration) * 100)
         );
-        if (timerRef.current) {
-          timerRef.current.style.width = `${percent}%`;
-        }
+
+        setProgress(percent);
 
         if (!isPaused && remaining > 0) {
           rafRef.current = requestAnimationFrame(updateTimer);
         }
       } else {
-        if (timerRef.current) {
-          timerRef.current.style.width = "100%";
-        }
+        setProgress(100);
       }
     };
 
@@ -127,11 +162,116 @@ export default function RoomClient({
   // Host Config State
   const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [totalQuestions, setTotalQuestions] = useState(30);
+  const [totalQuestions, setTotalQuestions] = useState("30");
+  const [tagSearch, setTagSearch] = useState("");
+  const [collectionSearch, setCollectionSearch] = useState("");
+  const [collectionSort, setCollectionSort] = useState<{
+    key: "alpha" | "count";
+    dir: "asc" | "desc";
+  }>({ key: "count", dir: "desc" });
+  const [tagSort, setTagSort] = useState<{
+    key: "alpha" | "count";
+    dir: "asc" | "desc";
+  }>({ key: "count", dir: "desc" });
   const [ratioStrategy, setRatioStrategy] = useState<
     "by_collection" | "consistent" | "custom"
   >("by_collection");
   const [customRatios, setCustomRatios] = useState<Record<string, number>>({});
+  const [customDistMode, setCustomDistMode] = useState<"count" | "percent">(
+    "count"
+  );
+  // Force re-run effect helper
+  const [triggerEqualize, setTriggerEqualize] = useState(0);
+
+  // Track active input for deferred updates (ID -> temporary value)
+  const [activeInput, setActiveInput] = useState<{
+    id: string;
+    value: string;
+  } | null>(null);
+
+  // Calculate max questions available based on selection
+  const maxAvailable =
+    selectedCollections.reduce((acc, id) => {
+      const col = collections.find((c) => c.id === id);
+      return acc + (col?._count.questions || 0);
+    }, 0) +
+    selectedTags.reduce((acc, id) => {
+      const tag = tags.find((t) => t.id === id);
+      return acc + (tag?._count.questions || 0);
+    }, 0);
+
+  useEffect(() => {
+    if (maxAvailable > 0) {
+      const current = parseInt(totalQuestions) || 0;
+      if (current > maxAvailable) {
+        setTotalQuestions(maxAvailable.toString());
+      }
+    }
+  }, [maxAvailable, totalQuestions]);
+
+  // Auto-equalize when selections change in percent mode
+  useEffect(() => {
+    if (ratioStrategy === "custom" && customDistMode === "percent") {
+      const hasTags = selectedTags.length > 0;
+      const topLevelItems = selectedCollections.length + (hasTags ? 1 : 0);
+      if (topLevelItems === 0) return;
+
+      const topShare = Math.floor(100 / topLevelItems);
+      // Distribute remainder to first item to ensure 100%
+      const topRemainder = 100 - topShare * topLevelItems;
+
+      const newRatios: Record<string, number> = {};
+
+      selectedCollections.forEach((id, idx) => {
+        newRatios[id] = topShare + (idx === 0 ? topRemainder : 0);
+      });
+
+      if (hasTags) {
+        newRatios["_TAGS_TOTAL_"] =
+          topShare + (selectedCollections.length === 0 ? topRemainder : 0);
+
+        const tagShare = Math.floor(100 / selectedTags.length);
+        const tagRemainder = 100 - tagShare * selectedTags.length;
+
+        selectedTags.forEach((id, idx) => {
+          newRatios[id] = tagShare + (idx === 0 ? tagRemainder : 0);
+        });
+      }
+
+      setCustomRatios(newRatios);
+    }
+  }, [
+    selectedCollections.length,
+    selectedTags.length,
+    ratioStrategy,
+    customDistMode,
+    triggerEqualize,
+  ]);
+
+  // Helper to adjust distribution proportionally using Largest Remainder Method
+  const adjustDistribution = (
+    changedId: string,
+    newValue: number,
+    group: "top" | "tags"
+  ) => {
+    setCustomRatios((prev) =>
+      calculateNewDistribution(
+        changedId,
+        newValue,
+        group,
+        prev,
+        selectedCollections,
+        selectedTags,
+        customDistMode
+      )
+    );
+  };
+
+  const currentTotal = parseInt(totalQuestions) || 0;
+  const totalAssigned =
+    selectedCollections.reduce((acc, id) => acc + (customRatios[id] || 0), 0) +
+    selectedTags.reduce((acc, id) => acc + (customRatios[id] || 0), 0);
+  const questionsLeft = currentTotal - totalAssigned;
 
   const handleStartGame = () => {
     if (!socket) return;
@@ -141,12 +281,42 @@ export default function RoomClient({
       return;
     }
 
+    const finalTotalQuestions = Math.min(
+      parseInt(totalQuestions) > 0 ? parseInt(totalQuestions) : 30,
+      maxAvailable
+    );
+
+    let backendRatios = customRatios;
+
+    if (ratioStrategy === "custom" && customDistMode === "percent") {
+      backendRatios = {};
+
+      // Process Collections
+      selectedCollections.forEach((id) => {
+        const pct = customRatios[id] || 0;
+        backendRatios[id] = Math.floor((pct / 100) * finalTotalQuestions);
+      });
+
+      // Process Tags
+      if (selectedTags.length > 0) {
+        const tagsTotalPct = customRatios["_TAGS_TOTAL_"] || 0;
+        const tagsTotalCount = Math.floor(
+          (tagsTotalPct / 100) * finalTotalQuestions
+        );
+
+        selectedTags.forEach((id) => {
+          const tagPct = customRatios[id] || 0;
+          backendRatios[id] = Math.floor((tagPct / 100) * tagsTotalCount);
+        });
+      }
+    }
+
     const config = {
       collectionIds: selectedCollections,
       tagIds: selectedTags,
-      totalQuestions,
+      totalQuestions: finalTotalQuestions,
       ratioStrategy,
-      customRatios,
+      customRatios: backendRatios,
     };
     socket.emit("start_game", { code, config });
   };
@@ -289,21 +459,10 @@ export default function RoomClient({
   const isHost = room.hostToken === playerToken;
   const isPaused = room.paused || room.pauseRemaining !== undefined;
 
-  // Calculate max questions available based on selection
-  const maxAvailable =
-    selectedCollections.reduce((acc, id) => {
-      const col = collections.find((c) => c.id === id);
-      return acc + (col?._count.questions || 0);
-    }, 0) +
-    selectedTags.reduce((acc, id) => {
-      const tag = tags.find((t) => t.id === id);
-      return acc + (tag?._count.questions || 0);
-    }, 0);
-
   return (
     <div className="min-h-screen bg-background text-foreground p-4 flex flex-col items-center">
       {/* Header / StatusBar */}
-      <div className="w-full max-w-6xl flex justify-between items-center bg-card p-4 rounded-xl border border-border mb-6">
+      <div className="w-full max-w-[95%] flex justify-between items-center bg-card p-4 rounded-xl border border-border mb-6">
         <div className="flex items-center gap-4">
           <div className="bg-primary px-3 py-1 rounded font-bold text-primary-foreground">
             {code}
@@ -360,7 +519,7 @@ export default function RoomClient({
         </div>
       </div>
 
-      <div className="w-full max-w-6xl grid grid-cols-12 gap-6">
+      <div className="w-full max-w-[95%] grid grid-cols-12 gap-6">
         {/* Main Stage (Question / Results) */}
         <div className="col-span-8 space-y-6">
           {room.phase === "lobby" && (
@@ -384,109 +543,442 @@ export default function RoomClient({
                 ) : (
                   <div className="space-y-6">
                     <div className="grid grid-cols-2 gap-6">
-                      <div className="space-y-4 border p-4 rounded-lg">
-                        <h3 className="font-bold border-b pb-2">
-                          {t("config.selectCollections")}
-                        </h3>
-                        <div className="max-h-[200px] overflow-y-auto space-y-2">
-                          {collections.map((col) => (
-                            <label
-                              key={col.id}
-                              className="flex items-center justify-between gap-2 p-2 hover:bg-muted rounded cursor-pointer border"
-                            >
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedCollections.includes(col.id)}
-                                  onChange={(e) => {
-                                    if (e.target.checked)
-                                      setSelectedCollections([
-                                        ...selectedCollections,
-                                        col.id,
-                                      ]);
-                                    else
-                                      setSelectedCollections(
-                                        selectedCollections.filter(
-                                          (id) => id !== col.id
-                                        )
-                                      );
-                                  }}
-                                  className="w-4 h-4"
-                                />
-                                <div className="flex flex-col">
-                                  <span className="text-sm font-medium">
-                                    {col.name}
-                                  </span>
-                                  <span className="text-[10px] text-muted-foreground">
-                                    by{" "}
-                                    {col.creator.name ||
-                                      col.creator.username ||
-                                      "Unknown"}
-                                  </span>
+                      <div className="space-y-4 border p-4 rounded-lg flex flex-col">
+                        <div className="flex items-center justify-between border-b pb-2">
+                          <h3 className="font-bold flex items-center gap-2">
+                            <List size={18} />
+                            {t("config.selectCollections")}
+                          </h3>
+                          <Badge variant="secondary">
+                            {selectedCollections.length}
+                          </Badge>
+                        </div>
+
+                        <div className="flex-1 flex flex-col justify-between gap-4">
+                          <div className="text-sm text-muted-foreground">
+                            {selectedCollections.length === 0 ? (
+                              <span className="italic">
+                                {t("config.noCollections")}
+                              </span>
+                            ) : (
+                              <ul className="list-disc list-inside">
+                                {selectedCollections.slice(0, 3).map((id) => {
+                                  const c = collections.find(
+                                    (x) => x.id === id
+                                  );
+                                  return (
+                                    <li key={id} className="truncate">
+                                      <span className="font-medium">
+                                        {c?.name}
+                                      </span>
+                                      <span className="text-xs text-muted-foreground ml-1">
+                                        - by{" "}
+                                        {c?.creator.name ||
+                                          c?.creator.username ||
+                                          "Unknown"}
+                                      </span>
+                                    </li>
+                                  );
+                                })}
+                                {selectedCollections.length > 3 && <li>...</li>}
+                              </ul>
+                            )}
+                          </div>
+
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" className="w-full">
+                                Select Collections
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+                              <DialogHeader>
+                                <DialogTitle>
+                                  {t("config.selectCollections")}
+                                </DialogTitle>
+                                <DialogDescription>
+                                  Choose which question collections to include
+                                  in the game.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="px-1 mt-2 flex gap-2">
+                                <div className="relative flex-1">
+                                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                                  <Input
+                                    placeholder="Search collections..."
+                                    value={collectionSearch}
+                                    onChange={(e) =>
+                                      setCollectionSearch(e.target.value)
+                                    }
+                                    className="pl-8"
+                                  />
+                                </div>
+                                <div className="flex bg-muted rounded-md p-1 gap-1 border">
+                                  <Button
+                                    size="sm"
+                                    variant={
+                                      collectionSort.key === "alpha"
+                                        ? "secondary"
+                                        : "ghost"
+                                    }
+                                    className="w-8 h-8 p-0"
+                                    onClick={() =>
+                                      setCollectionSort((prev) => ({
+                                        key: "alpha",
+                                        dir:
+                                          prev.key === "alpha" &&
+                                          prev.dir === "asc"
+                                            ? "desc"
+                                            : "asc",
+                                      }))
+                                    }
+                                    title="Sort Alphabetically"
+                                  >
+                                    {collectionSort.key === "alpha" &&
+                                    collectionSort.dir === "desc" ? (
+                                      <ArrowDownAZ size={16} />
+                                    ) : (
+                                      <ArrowUpAZ size={16} />
+                                    )}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant={
+                                      collectionSort.key === "count"
+                                        ? "secondary"
+                                        : "ghost"
+                                    }
+                                    className="w-8 h-8 p-0"
+                                    onClick={() =>
+                                      setCollectionSort((prev) => ({
+                                        key: "count",
+                                        dir:
+                                          prev.key === "count" &&
+                                          prev.dir === "desc"
+                                            ? "asc"
+                                            : "desc",
+                                      }))
+                                    }
+                                    title="Sort by Count"
+                                  >
+                                    {collectionSort.key === "count" &&
+                                    collectionSort.dir === "asc" ? (
+                                      <ArrowUpNarrowWide size={16} />
+                                    ) : (
+                                      <ArrowDownWideNarrow size={16} />
+                                    )}
+                                  </Button>
                                 </div>
                               </div>
-                              <span className="text-xs badge bg-muted-foreground/20 px-2 py-0.5 rounded">
-                                {col._count.questions}
-                              </span>
-                            </label>
-                          ))}
-                          {collections.length === 0 && (
-                            <p className="text-xs text-muted-foreground">
-                              {t("config.noCollections")}
-                            </p>
-                          )}
+                              <ScrollArea className="h-[60vh] border rounded-md p-2 mt-4">
+                                <div className="space-y-2">
+                                  {collections
+                                    .filter((col) =>
+                                      col.name
+                                        .toLowerCase()
+                                        .includes(
+                                          collectionSearch.toLowerCase()
+                                        )
+                                    )
+                                    .sort((a, b) => {
+                                      const dir =
+                                        collectionSort.dir === "asc" ? 1 : -1;
+                                      if (collectionSort.key === "alpha") {
+                                        return (
+                                          a.name.localeCompare(b.name) * dir
+                                        );
+                                      }
+                                      return (
+                                        (a._count.questions -
+                                          b._count.questions) *
+                                        dir
+                                      );
+                                    })
+                                    .map((col) => (
+                                      <div
+                                        key={col.id}
+                                        className="flex items-center justify-between gap-2 p-2 hover:bg-accent rounded-sm border"
+                                      >
+                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                          <Checkbox
+                                            id={`col-d-${col.id}`}
+                                            checked={selectedCollections.includes(
+                                              col.id
+                                            )}
+                                            onCheckedChange={(checked) => {
+                                              if (checked) {
+                                                setSelectedCollections([
+                                                  ...selectedCollections,
+                                                  col.id,
+                                                ]);
+                                              } else {
+                                                setSelectedCollections(
+                                                  selectedCollections.filter(
+                                                    (id) => id !== col.id
+                                                  )
+                                                );
+                                              }
+                                            }}
+                                          />
+                                          <Label
+                                            htmlFor={`col-d-${col.id}`}
+                                            className="flex flex-1 items-center justify-between cursor-pointer min-w-0 gap-2"
+                                          >
+                                            <div className="flex flex-col min-w-0 gap-0.5">
+                                              <span className="text-sm font-medium truncate">
+                                                {col.name}
+                                              </span>
+                                              {col.description && (
+                                                <span className="text-xs text-muted-foreground line-clamp-2 leading-tight mb-1">
+                                                  {col.description}
+                                                </span>
+                                              )}
+                                              <span className="text-[10px] text-muted-foreground/80 truncate">
+                                                by{" "}
+                                                {col.creator.name ||
+                                                  col.creator.username ||
+                                                  "Unknown"}
+                                              </span>
+                                            </div>
+                                            <Badge
+                                              variant="secondary"
+                                              className="text-xs shrink-0"
+                                            >
+                                              {col._count.questions}
+                                            </Badge>
+                                          </Label>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                            onClick={(e) => {
+                                              e.stopPropagation(); // Prevent toggling selection
+                                              window.open(
+                                                `/collections/${col.id}`,
+                                                "_blank"
+                                              );
+                                            }}
+                                            title="View Collection"
+                                          >
+                                            <Eye size={16} />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  {collections.length === 0 && (
+                                    <p className="text-center py-8 text-muted-foreground">
+                                      No collections available.
+                                    </p>
+                                  )}
+                                </div>
+                              </ScrollArea>
+                              <div className="text-xs text-muted-foreground text-center pt-2">
+                                {selectedCollections.length} selected
+                              </div>
+                            </DialogContent>
+                          </Dialog>
                         </div>
                       </div>
 
-                      <div className="space-y-4 border p-4 rounded-lg">
-                        <h3 className="font-bold border-b pb-2">
-                          {t("config.selectTags")}
-                        </h3>
-                        <div className="max-h-[200px] overflow-y-auto space-y-2">
-                          {tags.map((tag) => (
-                            <label
-                              key={tag.id}
-                              className="flex items-center justify-between gap-2 p-2 hover:bg-muted rounded cursor-pointer border"
-                            >
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedTags.includes(tag.id)}
-                                  onChange={(e) => {
-                                    if (e.target.checked)
-                                      setSelectedTags([
-                                        ...selectedTags,
-                                        tag.id,
-                                      ]);
-                                    else
-                                      setSelectedTags(
-                                        selectedTags.filter(
-                                          (id) => id !== tag.id
-                                        )
-                                      );
-                                  }}
-                                  className="w-4 h-4"
-                                />
-                                <span className="text-sm font-medium">
-                                  {tag.name}
-                                </span>
-                              </div>
-                              <span className="text-xs badge bg-muted-foreground/20 px-2 py-0.5 rounded">
-                                {tag._count.questions}
+                      <div className="space-y-4 border p-4 rounded-lg flex flex-col">
+                        <div className="flex items-center justify-between border-b pb-2">
+                          <h3 className="font-bold flex items-center gap-2">
+                            <Tag size={18} />
+                            {t("config.selectTags")}
+                          </h3>
+                          <Badge variant="secondary">
+                            {selectedTags.length}
+                          </Badge>
+                        </div>
+
+                        <div className="flex-1 flex flex-col justify-between gap-4">
+                          <div className="text-sm text-muted-foreground">
+                            {selectedTags.length === 0 ? (
+                              <span className="italic">
+                                {t("config.noTags")}
                               </span>
-                            </label>
-                          ))}
-                          {tags.length === 0 && (
-                            <p className="text-xs text-muted-foreground">
-                              {t("config.noTags")}
-                            </p>
-                          )}
+                            ) : (
+                              <ul className="list-disc list-inside">
+                                {selectedTags.slice(0, 3).map((id) => {
+                                  const t = tags.find((x) => x.id === id);
+                                  return (
+                                    <li key={id} className="truncate">
+                                      {t?.name}
+                                    </li>
+                                  );
+                                })}
+                                {selectedTags.length > 3 && <li>...</li>}
+                              </ul>
+                            )}
+                          </div>
+
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" className="w-full">
+                                Select Tags
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-xl max-h-[80vh] flex flex-col">
+                              <DialogHeader>
+                                <DialogTitle>
+                                  {t("config.selectTags")}
+                                </DialogTitle>
+                                <DialogDescription>
+                                  Filter questions by specific tags.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="px-1 mt-2 flex gap-2">
+                                <div className="relative flex-1">
+                                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                                  <Input
+                                    placeholder="Search tags..."
+                                    value={tagSearch}
+                                    onChange={(e) =>
+                                      setTagSearch(e.target.value)
+                                    }
+                                    className="pl-8"
+                                  />
+                                </div>
+                                <div className="flex bg-muted rounded-md p-1 gap-1 border">
+                                  <Button
+                                    size="sm"
+                                    variant={
+                                      tagSort.key === "alpha"
+                                        ? "secondary"
+                                        : "ghost"
+                                    }
+                                    className="w-8 h-8 p-0"
+                                    onClick={() =>
+                                      setTagSort((prev) => ({
+                                        key: "alpha",
+                                        dir:
+                                          prev.key === "alpha" &&
+                                          prev.dir === "asc"
+                                            ? "desc"
+                                            : "asc",
+                                      }))
+                                    }
+                                    title="Sort Alphabetically"
+                                  >
+                                    {tagSort.key === "alpha" &&
+                                    tagSort.dir === "desc" ? (
+                                      <ArrowDownAZ size={16} />
+                                    ) : (
+                                      <ArrowUpAZ size={16} />
+                                    )}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant={
+                                      tagSort.key === "count"
+                                        ? "secondary"
+                                        : "ghost"
+                                    }
+                                    className="w-8 h-8 p-0"
+                                    onClick={() =>
+                                      setTagSort((prev) => ({
+                                        key: "count",
+                                        dir:
+                                          prev.key === "count" &&
+                                          prev.dir === "desc"
+                                            ? "asc"
+                                            : "desc",
+                                      }))
+                                    }
+                                    title="Sort by Count"
+                                  >
+                                    {tagSort.key === "count" &&
+                                    tagSort.dir === "asc" ? (
+                                      <ArrowUpNarrowWide size={16} />
+                                    ) : (
+                                      <ArrowDownWideNarrow size={16} />
+                                    )}
+                                  </Button>
+                                </div>
+                              </div>
+                              <ScrollArea className="h-[60vh] border rounded-md p-2 mt-2">
+                                <div className="grid grid-cols-2 gap-2">
+                                  {tags
+                                    .filter((tag) =>
+                                      tag.name
+                                        .toLowerCase()
+                                        .includes(tagSearch.toLowerCase())
+                                    )
+                                    .sort((a, b) => {
+                                      const dir =
+                                        tagSort.dir === "asc" ? 1 : -1;
+                                      if (tagSort.key === "alpha") {
+                                        return (
+                                          a.name.localeCompare(b.name) * dir
+                                        );
+                                      }
+                                      return (
+                                        (a._count.questions -
+                                          b._count.questions) *
+                                        dir
+                                      );
+                                    })
+                                    .map((tag) => (
+                                      <div
+                                        key={tag.id}
+                                        className="flex items-center justify-between gap-2 p-2 hover:bg-accent rounded-sm border"
+                                      >
+                                        <div className="flex items-center gap-2 flex-1">
+                                          <Checkbox
+                                            id={`tag-d-${tag.id}`}
+                                            checked={selectedTags.includes(
+                                              tag.id
+                                            )}
+                                            onCheckedChange={(checked) => {
+                                              if (checked) {
+                                                setSelectedTags([
+                                                  ...selectedTags,
+                                                  tag.id,
+                                                ]);
+                                              } else {
+                                                setSelectedTags(
+                                                  selectedTags.filter(
+                                                    (id) => id !== tag.id
+                                                  )
+                                                );
+                                              }
+                                            }}
+                                          />
+                                          <Label
+                                            htmlFor={`tag-d-${tag.id}`}
+                                            className="flex flex-1 items-center justify-between cursor-pointer min-w-0 gap-2"
+                                          >
+                                            <span className="text-sm font-medium truncate">
+                                              {tag.name}
+                                            </span>
+                                            <Badge
+                                              variant="secondary"
+                                              className="text-xs shrink-0"
+                                            >
+                                              {tag._count.questions}
+                                            </Badge>
+                                          </Label>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  {tags.length === 0 && (
+                                    <p className="text-center py-8 text-muted-foreground">
+                                      No tags available.
+                                    </p>
+                                  )}
+                                </div>
+                              </ScrollArea>
+                              <div className="text-xs text-muted-foreground text-center pt-2">
+                                {selectedTags.length} selected
+                              </div>
+                            </DialogContent>
+                          </Dialog>
                         </div>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-6">
-                      <div className="space-y-4 border p-4 rounded-lg">
+                      <div className="col-span-2 space-y-4 border p-4 rounded-lg">
                         <h3 className="font-bold border-b pb-2">
                           {t("config.gameSettings")}
                         </h3>
@@ -496,15 +988,25 @@ export default function RoomClient({
                             {t("config.totalQuestions")}
                           </label>
                           <div className="flex items-center gap-2">
-                            <input
-                              type="number"
+                            <Input
+                              type="text"
+                              inputMode="numeric"
                               value={totalQuestions}
-                              onChange={(e) =>
-                                setTotalQuestions(Number(e.target.value))
-                              }
-                              max={maxAvailable}
-                              min={1}
-                              className="border rounded p-1 w-20 text-center bg-background"
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                // Allow empty or numeric string
+                                if (val === "" || /^\d+$/.test(val)) {
+                                  let numStr = val;
+                                  if (val !== "" && maxAvailable > 0) {
+                                    const num = parseInt(val);
+                                    if (num > maxAvailable) {
+                                      numStr = maxAvailable.toString();
+                                    }
+                                  }
+                                  setTotalQuestions(numStr);
+                                }
+                              }}
+                              className="w-24 text-center"
                             />
                             <span className="text-xs text-muted-foreground">
                               {t("config.max", { max: maxAvailable })}
@@ -516,89 +1018,455 @@ export default function RoomClient({
                           <label className="text-sm font-medium">
                             {t("config.distribution")}
                           </label>
-                          <div className="flex flex-col gap-1">
-                            <label className="flex items-center gap-2 text-sm">
-                              <input
-                                type="radio"
-                                name="ratio"
-                                checked={ratioStrategy === "by_collection"}
-                                onChange={() =>
-                                  setRatioStrategy("by_collection")
-                                }
+                          <RadioGroup
+                            value={ratioStrategy}
+                            onValueChange={(val: any) => setRatioStrategy(val)}
+                            className="flex flex-col gap-2"
+                          >
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem
+                                value="by_collection"
+                                id="r-collection"
                               />
-                              {t("config.distCollection")}
-                            </label>
-                            <label className="flex items-center gap-2 text-sm">
-                              <input
-                                type="radio"
-                                name="ratio"
-                                checked={ratioStrategy === "consistent"}
-                                onChange={() => setRatioStrategy("consistent")}
+                              <Label htmlFor="r-collection">
+                                {t("config.distCollection")}
+                              </Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem
+                                value="consistent"
+                                id="r-consistent"
                               />
-                              {t("config.distConsistent")}
-                            </label>
-                            <label className="flex items-center gap-2 text-sm">
-                              <input
-                                type="radio"
-                                name="ratio"
-                                checked={ratioStrategy === "custom"}
-                                onChange={() => setRatioStrategy("custom")}
-                              />
-                              {t("config.distCustom")}
-                            </label>
-                          </div>
+                              <Label htmlFor="r-consistent">
+                                {t("config.distConsistent")}
+                              </Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="custom" id="r-custom" />
+                              <Label htmlFor="r-custom">
+                                {t("config.distCustom")}
+                              </Label>
+                            </div>
+                          </RadioGroup>
                         </div>
 
                         {ratioStrategy === "custom" && (
-                          <div className="space-y-1 mt-2 max-h-[100px] overflow-y-auto">
-                            {selectedCollections.map((id) => {
-                              const col = collections.find((c) => c.id === id);
-                              if (!col) return null;
-                              return (
-                                <div
-                                  key={id}
-                                  className="flex justify-between items-center text-xs"
-                                >
-                                  <span className="truncate w-32">
-                                    {col.name}
-                                  </span>
-                                  <input
-                                    type="number"
-                                    className="w-12 border rounded px-1 bg-background"
-                                    placeholder="0"
-                                    value={customRatios[id] || 0}
-                                    onChange={(e) =>
-                                      setCustomRatios({
-                                        ...customRatios,
-                                        [id]: Number(e.target.value),
-                                      })
-                                    }
-                                  />
+                          <div className="space-y-6 mt-4 p-4 border rounded-xl bg-card shadow-sm">
+                            {selectedCollections.length === 0 &&
+                            selectedTags.length === 0 ? (
+                              <div className="text-center text-muted-foreground italic py-4">
+                                {t("config.customHelp")}
+                              </div>
+                            ) : (
+                              <>
+                                <div className="flex justify-between items-center mb-4">
+                                  <div className="flex bg-muted/50 rounded-lg p-1 w-fit">
+                                    <Button
+                                      size="sm"
+                                      variant={
+                                        customDistMode === "count"
+                                          ? "secondary"
+                                          : "ghost"
+                                      }
+                                      className="h-7 w-8 px-0 text-xs rounded-md"
+                                      onClick={() => {
+                                        setCustomDistMode("count");
+                                        setCustomRatios({});
+                                      }}
+                                    >
+                                      #
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant={
+                                        customDistMode === "percent"
+                                          ? "secondary"
+                                          : "ghost"
+                                      }
+                                      className="h-7 w-8 px-0 text-xs rounded-md"
+                                      onClick={() => {
+                                        setCustomDistMode("percent");
+                                        setTriggerEqualize((prev) => prev + 1);
+                                      }}
+                                    >
+                                      %
+                                    </Button>
+                                  </div>
+                                  {customDistMode === "count" && (
+                                    <div
+                                      className={clsx(
+                                        "text-sm font-bold px-2 py-1 rounded",
+                                        questionsLeft === 0
+                                          ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                                          : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                                      )}
+                                    >
+                                      {t("config.questionsLeft", {
+                                        n: questionsLeft,
+                                      })}
+                                    </div>
+                                  )}
                                 </div>
-                              );
-                            })}
+                                {/* Collections Section */}
+                                {selectedCollections.map((id) => {
+                                  const collection = collections.find(
+                                    (c) => c.id === id
+                                  );
+                                  if (!collection) return null;
+                                  const isFocused = activeInput?.id === id;
+                                  const displayValue = isFocused
+                                    ? activeInput.value
+                                    : customRatios[id] !== undefined
+                                    ? customRatios[id]
+                                    : "";
+
+                                  return (
+                                    <div key={id} className="space-y-2">
+                                      <div className="flex items-center justify-between gap-2 text-sm font-medium">
+                                        <span className="truncate flex-1 min-w-[120px]">
+                                          {collection.name}
+                                        </span>
+                                        <div className="flex items-center gap-1">
+                                          <Input
+                                            type="text"
+                                            inputMode="numeric"
+                                            className="w-16 text-right h-8 px-2"
+                                            value={displayValue}
+                                            placeholder="0"
+                                            onFocus={() =>
+                                              setActiveInput({
+                                                id,
+                                                value: (
+                                                  customRatios[id] || 0
+                                                ).toString(),
+                                              })
+                                            }
+                                            onBlur={() => {
+                                              if (
+                                                activeInput &&
+                                                customDistMode === "percent"
+                                              ) {
+                                                const num =
+                                                  activeInput.value === ""
+                                                    ? 0
+                                                    : parseInt(
+                                                        activeInput.value
+                                                      );
+                                                adjustDistribution(
+                                                  id,
+                                                  num,
+                                                  "top"
+                                                );
+                                              }
+                                              setActiveInput(null);
+                                            }}
+                                            onKeyDown={(e) => {
+                                              if (e.key === "Enter") {
+                                                e.currentTarget.blur();
+                                              }
+                                            }}
+                                            onChange={(e) => {
+                                              const val = e.target.value;
+                                              if (
+                                                val === "" ||
+                                                /^\d*$/.test(val)
+                                              ) {
+                                                setActiveInput({
+                                                  id,
+                                                  value: val,
+                                                });
+                                                // Immediate update for count mode
+                                                if (
+                                                  customDistMode === "count"
+                                                ) {
+                                                  const num =
+                                                    val === ""
+                                                      ? 0
+                                                      : Number(val);
+                                                  setCustomRatios((prev) => ({
+                                                    ...prev,
+                                                    [id]: num,
+                                                  }));
+                                                }
+                                              }
+                                            }}
+                                          />
+                                          <span className="text-xs w-4 text-muted-foreground">
+                                            {customDistMode === "percent"
+                                              ? "%"
+                                              : "#"}
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      {customDistMode === "percent" && (
+                                        <input
+                                          type="range"
+                                          min="0"
+                                          max="100"
+                                          step="1"
+                                          value={customRatios[id] || 0}
+                                          onChange={(e) =>
+                                            adjustDistribution(
+                                              id,
+                                              Number(e.target.value),
+                                              "top"
+                                            )
+                                          }
+                                          className="w-full accent-blue-500 h-3 bg-muted rounded-full appearance-none cursor-pointer hover:bg-muted/80 transition-all"
+                                        />
+                                      )}
+                                    </div>
+                                  );
+                                })}
+
+                                {/* Tags Section */}
+                                {selectedTags.length > 0 && (
+                                  <div className="pt-4 border-t border-dashed">
+                                    <div className="space-y-2">
+                                      <div className="flex items-center justify-between gap-2 text-sm font-bold text-primary">
+                                        <span>Tags (Combined)</span>
+                                        <div className="flex items-center gap-1">
+                                          {customDistMode === "percent" && (
+                                            <>
+                                              <Input
+                                                type="text"
+                                                inputMode="numeric"
+                                                className="w-16 text-right h-8 px-2 font-bold"
+                                                value={
+                                                  activeInput?.id ===
+                                                  "_TAGS_TOTAL_"
+                                                    ? activeInput.value
+                                                    : customRatios[
+                                                        "_TAGS_TOTAL_"
+                                                      ] !== undefined
+                                                    ? customRatios[
+                                                        "_TAGS_TOTAL_"
+                                                      ]
+                                                    : ""
+                                                }
+                                                placeholder="0"
+                                                onFocus={() =>
+                                                  setActiveInput({
+                                                    id: "_TAGS_TOTAL_",
+                                                    value: (
+                                                      customRatios[
+                                                        "_TAGS_TOTAL_"
+                                                      ] || 0
+                                                    ).toString(),
+                                                  })
+                                                }
+                                                onBlur={() => {
+                                                  if (
+                                                    activeInput &&
+                                                    customDistMode === "percent"
+                                                  ) {
+                                                    const num =
+                                                      activeInput.value === ""
+                                                        ? 0
+                                                        : parseInt(
+                                                            activeInput.value
+                                                          );
+                                                    adjustDistribution(
+                                                      "_TAGS_TOTAL_",
+                                                      num,
+                                                      "top"
+                                                    );
+                                                  }
+                                                  setActiveInput(null);
+                                                }}
+                                                onKeyDown={(e) => {
+                                                  if (e.key === "Enter") {
+                                                    e.currentTarget.blur();
+                                                  }
+                                                }}
+                                                onChange={(e) => {
+                                                  const val = e.target.value;
+                                                  if (
+                                                    val === "" ||
+                                                    /^\d*$/.test(val)
+                                                  ) {
+                                                    setActiveInput({
+                                                      id: "_TAGS_TOTAL_",
+                                                      value: val,
+                                                    });
+                                                  }
+                                                }}
+                                              />
+                                              <span className="text-xs w-4">
+                                                %
+                                              </span>
+                                            </>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {customDistMode === "percent" && (
+                                        <input
+                                          type="range"
+                                          min="0"
+                                          max="100"
+                                          step="1"
+                                          value={
+                                            customRatios["_TAGS_TOTAL_"] || 0
+                                          }
+                                          onChange={(e) =>
+                                            adjustDistribution(
+                                              "_TAGS_TOTAL_",
+                                              Number(e.target.value),
+                                              "top"
+                                            )
+                                          }
+                                          className="w-full accent-green-500 h-3 bg-muted rounded-full appearance-none cursor-pointer"
+                                        />
+                                      )}
+
+                                      {/* Individual Tags Sub-sliders */}
+                                      <div className="pl-4 pt-2 space-y-4 border-l-2 border-muted ml-1">
+                                        {selectedTags.map((id) => {
+                                          const tag = tags.find(
+                                            (t) => t.id === id
+                                          );
+                                          if (!tag) return null;
+                                          return (
+                                            <div key={id} className="space-y-1">
+                                              <div className="flex items-center justify-between gap-2 text-xs">
+                                                <span className="text-muted-foreground">
+                                                  {tag.name}
+                                                </span>
+                                                <div className="flex items-center gap-1">
+                                                  <Input
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    className="w-14 text-right h-7 px-1 text-xs"
+                                                    value={
+                                                      activeInput?.id === id
+                                                        ? activeInput.value
+                                                        : customRatios[id] !==
+                                                          undefined
+                                                        ? customRatios[id]
+                                                        : ""
+                                                    }
+                                                    placeholder="0"
+                                                    onFocus={() =>
+                                                      setActiveInput({
+                                                        id,
+                                                        value: (
+                                                          customRatios[id] || 0
+                                                        ).toString(),
+                                                      })
+                                                    }
+                                                    onBlur={() => {
+                                                      if (
+                                                        activeInput &&
+                                                        customDistMode ===
+                                                          "percent"
+                                                      ) {
+                                                        const num =
+                                                          activeInput.value ===
+                                                          ""
+                                                            ? 0
+                                                            : parseInt(
+                                                                activeInput.value
+                                                              );
+                                                        adjustDistribution(
+                                                          id,
+                                                          num,
+                                                          "tags"
+                                                        );
+                                                      }
+                                                      setActiveInput(null);
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                      if (e.key === "Enter") {
+                                                        e.currentTarget.blur();
+                                                      }
+                                                    }}
+                                                    onChange={(e) => {
+                                                      const val =
+                                                        e.target.value;
+                                                      if (
+                                                        val === "" ||
+                                                        /^\d*$/.test(val)
+                                                      ) {
+                                                        setActiveInput({
+                                                          id,
+                                                          value: val,
+                                                        });
+                                                        if (
+                                                          customDistMode ===
+                                                          "count"
+                                                        ) {
+                                                          const num =
+                                                            val === ""
+                                                              ? 0
+                                                              : Number(val);
+                                                          setCustomRatios(
+                                                            (prev) => ({
+                                                              ...prev,
+                                                              [id]: num,
+                                                            })
+                                                          );
+                                                        }
+                                                      }
+                                                    }}
+                                                  />
+                                                  <span className="text-[10px] w-3 text-muted-foreground">
+                                                    {customDistMode ===
+                                                    "percent"
+                                                      ? "%"
+                                                      : "#"}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                              {customDistMode === "percent" && (
+                                                <input
+                                                  type="range"
+                                                  min="0"
+                                                  max="100"
+                                                  step="1"
+                                                  value={customRatios[id] || 0}
+                                                  onChange={(e) =>
+                                                    adjustDistribution(
+                                                      id,
+                                                      Number(e.target.value),
+                                                      "tags"
+                                                    )
+                                                  }
+                                                  className="w-full accent-orange-400 h-2 bg-muted rounded-full appearance-none cursor-pointer"
+                                                />
+                                              )}
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </>
+                            )}
                           </div>
                         )}
 
-                        <div className="pt-2">
-                          <label className="text-sm font-semibold cursor-pointer select-none flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={
-                                room.settings?.simultaneousJokers || false
-                              }
-                              onChange={(e) =>
-                                socket?.emit("update_settings", {
-                                  code,
-                                  settings: {
-                                    simultaneousJokers: e.target.checked,
-                                  },
-                                })
-                              }
-                              className="w-4 h-4 accent-primary"
-                            />
+                        <div className="pt-2 flex items-center space-x-2">
+                          <Switch
+                            id="simul-jokers"
+                            checked={room.settings?.simultaneousJokers || false}
+                            onCheckedChange={(checked) =>
+                              socket?.emit("update_settings", {
+                                code,
+                                settings: {
+                                  simultaneousJokers: checked,
+                                },
+                              })
+                            }
+                          />
+                          <Label
+                            htmlFor="simul-jokers"
+                            className="font-semibold cursor-pointer"
+                          >
                             {t("config.simultaneousJokers")}
-                          </label>
+                          </Label>
                         </div>
                       </div>
                     </div>
@@ -606,7 +1474,11 @@ export default function RoomClient({
                     <Button
                       onClick={handleStartGame}
                       disabled={
-                        selectedCollections.length === 0 || totalQuestions < 1
+                        selectedCollections.length === 0 ||
+                        (parseInt(totalQuestions) || 0) < 1 ||
+                        (ratioStrategy === "custom" &&
+                          customDistMode === "count" &&
+                          questionsLeft !== 0)
                       }
                       className="w-full h-12 text-lg font-bold bg-green-600 hover:bg-green-700 text-white shadow-lg"
                     >
@@ -614,21 +1486,39 @@ export default function RoomClient({
                     </Button>
 
                     <div className="pt-4 mt-4 border-t">
-                      <Button
-                        variant="destructive"
-                        className="w-full"
-                        onClick={() => {
-                          if (
-                            confirm(
-                              "Are you sure you want to delete this lobby? All players will be disconnected."
-                            )
-                          ) {
-                            socket?.emit("delete_room", code);
-                          }
-                        }}
-                      >
-                        Delete Lobby
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" className="w-full">
+                            Delete Lobby
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              {t("deleteLobbyTitle", {
+                                defaultValue: "Delete Lobby?",
+                              })}
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {t("deleteLobbyConfirm", {
+                                defaultValue:
+                                  "Are you sure you want to delete this lobby? All players will be disconnected.",
+                              })}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>
+                              {t("cancel", { defaultValue: "Cancel" })}
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => socket?.emit("delete_room", code)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              {t("delete", { defaultValue: "Delete" })}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                 )}
@@ -665,12 +1555,18 @@ export default function RoomClient({
                 </Card>
 
                 {/* Timer Bar */}
-                <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                  <div
-                    ref={timerRef}
-                    className="h-full bg-blue-500"
-                    style={{ width: "100%" }}
-                  ></div>
+                <div className="w-full">
+                  <Progress
+                    value={progress}
+                    className="h-4"
+                    indicatorClassName={
+                      progress < 20
+                        ? "bg-red-500"
+                        : progress < 50
+                        ? "bg-yellow-500"
+                        : "bg-blue-500"
+                    }
+                  />
                 </div>
 
                 {/* Joker Bar */}
@@ -827,89 +1723,111 @@ export default function RoomClient({
                 {t("players")} ({Object.keys(room.players).length})
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              {Object.values(room.players)
-                .sort((a, b) => b.score - a.score)
-                .map((player) => (
-                  <div
-                    key={player.token}
-                    className="flex flex-col bg-muted p-3 rounded border border-border gap-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <UserAvatar
-                          src={player.avatar}
-                          name={player.name}
-                          className="w-8 h-8 ring-2 ring-background"
-                        />
-                        <span className="font-semibold text-sm truncate max-w-[100px]">
-                          {player.name}
-                        </span>
-                      </div>
-                      <div className="font-mono text-yellow-500 font-bold">
-                        {player.score}
-                      </div>
-                    </div>
-
-                    {/* Spy View: Show selected answer if I am the spy */}
-                    {spyActive &&
-                      player.token !== playerToken &&
-                      player.selectedChoice !== null && (
-                        <div className="text-xs bg-blue-500/20 text-blue-500 px-2 py-1 rounded border border-blue-500/50 font-mono text-center">
-                          Selected:{" "}
-                          <span className="font-bold">
-                            {room.currentQ?.choices[player.selectedChoice]}
-                          </span>
+            <CardContent className="p-0">
+              <ScrollArea className="h-[600px] px-6 py-4">
+                <div className="space-y-3">
+                  {Object.values(room.players)
+                    .sort((a, b) => b.score - a.score)
+                    .map((player) => (
+                      <div
+                        key={player.token}
+                        className={clsx(
+                          "flex flex-col p-3 rounded-lg border gap-2 transition-all hover:bg-accent/50",
+                          player.token === playerToken
+                            ? "bg-primary/5 border-primary/20"
+                            : "bg-card border-border"
+                        )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 overflow-hidden">
+                            <UserAvatar
+                              src={player.avatar}
+                              name={player.name}
+                              className="w-9 h-9 ring-2 ring-background shadow-sm"
+                            />
+                            <div className="flex flex-col min-w-0">
+                              <span className="font-semibold text-sm truncate">
+                                {player.name}
+                              </span>
+                              {player.token === room.hostToken && (
+                                <Badge
+                                  variant="secondary"
+                                  className="text-[10px] px-1 h-4 w-fit"
+                                >
+                                  HOST
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className="font-mono text-base px-2 py-0 border-yellow-500/50 text-yellow-600 dark:text-yellow-400 bg-yellow-500/10"
+                          >
+                            {player.score}
+                          </Badge>
                         </div>
-                      )}
 
-                    {/* Jokers Display */}
-                    <div className="flex gap-2 justify-end border-t border-border/50 pt-2">
-                      <div
-                        className={clsx(
-                          "text-xs flex items-center gap-1 p-1 rounded",
-                          player.joker5050
-                            ? "opacity-100"
-                            : "opacity-20 grayscale",
-                          player.used5050ThisQ &&
-                            player.token !== playerToken &&
-                            "border border-purple-500 bg-purple-500/10"
-                        )}
-                        title="50/50 Joker"
-                      >
-                        <span>⚖️</span>
+                        {/* Spy View: Show selected answer if I am the spy */}
+                        {spyActive &&
+                          player.token !== playerToken &&
+                          player.selectedChoice !== null && (
+                            <div className="text-xs bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-1.5 rounded border border-blue-500/20 font-mono text-center shadow-sm">
+                              Selected:{" "}
+                              <span className="font-bold">
+                                {room.currentQ?.choices[player.selectedChoice]}
+                              </span>
+                            </div>
+                          )}
+
+                        {/* Jokers Display */}
+                        <div className="flex gap-2 justify-end border-t border-border/50 pt-2 mt-1">
+                          <div
+                            className={clsx(
+                              "text-xs flex items-center gap-1 px-1.5 py-0.5 rounded transition-all",
+                              player.joker5050
+                                ? "opacity-100 bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20"
+                                : "opacity-30 grayscale",
+                              player.used5050ThisQ &&
+                                player.token !== playerToken &&
+                                "ring-2 ring-purple-500 ring-offset-1"
+                            )}
+                            title="50/50 Joker"
+                          >
+                            <span>⚖️</span>
+                          </div>
+                          <div
+                            className={clsx(
+                              "text-xs flex items-center gap-1 px-1.5 py-0.5 rounded transition-all",
+                              player.jokerSpy
+                                ? "opacity-100 bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
+                                : "opacity-30 grayscale",
+                              player.usedSpyThisQ &&
+                                player.token !== playerToken &&
+                                "ring-2 ring-blue-500 ring-offset-1 animate-pulse"
+                            )}
+                            title="Spy Joker"
+                          >
+                            <span>🕵️</span>
+                          </div>
+                          <div
+                            className={clsx(
+                              "text-xs flex items-center gap-1 px-1.5 py-0.5 rounded transition-all",
+                              player.jokerRisk
+                                ? "opacity-100 bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20"
+                                : "opacity-30 grayscale",
+                              player.usedRiskThisQ &&
+                                player.token !== playerToken &&
+                                "ring-2 ring-red-500 ring-offset-1 animate-pulse"
+                            )}
+                            title="Risk Joker"
+                          >
+                            <span>🔥</span>
+                          </div>
+                        </div>
                       </div>
-                      <div
-                        className={clsx(
-                          "text-xs flex items-center gap-1 p-1 rounded",
-                          player.jokerSpy
-                            ? "opacity-100"
-                            : "opacity-20 grayscale",
-                          player.usedSpyThisQ &&
-                            player.token !== playerToken &&
-                            "border border-blue-500 bg-blue-500/10 animate-pulse"
-                        )}
-                        title="Spy Joker"
-                      >
-                        <span>🕵️</span>
-                      </div>
-                      <div
-                        className={clsx(
-                          "text-xs flex items-center gap-1 p-1 rounded",
-                          player.jokerRisk
-                            ? "opacity-100"
-                            : "opacity-20 grayscale",
-                          player.usedRiskThisQ &&
-                            player.token !== playerToken &&
-                            "border border-red-500 bg-red-500/10 animate-pulse"
-                        )}
-                        title="Risk Joker"
-                      >
-                        <span>🔥</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    ))}
+                </div>
+              </ScrollArea>
             </CardContent>
           </Card>
         </div>
