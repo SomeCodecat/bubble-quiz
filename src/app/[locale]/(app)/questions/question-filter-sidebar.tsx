@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Search, Filter, LayoutGrid, List, Grid } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
 interface Props {
   className?: string;
@@ -31,6 +32,8 @@ export function QuestionFilterSidebar({
   setSelectedTags,
 }: Props) {
   const t = useTranslations("Questions");
+  const [tagSearch, setTagSearch] = useState("");
+  
   const toggleTag = (name: string) => {
     if (!setSelectedTags) return;
     if (selectedTags.includes(name)) {
@@ -103,12 +106,22 @@ export function QuestionFilterSidebar({
           {t("tags")}
         </Label>
         <div className="flex flex-wrap gap-2">
-          {allTags.length === 0 && (
+          <Input
+            placeholder="Filter tags..."
+            value={tagSearch}
+            onChange={(e) => setTagSearch(e.target.value)}
+            className="mb-2 h-8 text-xs"
+          />
+          {allTags
+            .filter(t => t.name.toLowerCase().includes(tagSearch.toLowerCase()))
+            .length === 0 && (
             <div className="text-xs text-muted-foreground italic">
               {t("noTags")}
             </div>
           )}
-          {allTags.map((tag) => (
+          {allTags
+            .filter(t => t.name.toLowerCase().includes(tagSearch.toLowerCase()))
+            .map((tag) => (
             <Badge
               key={tag.id}
               variant={selectedTags.includes(tag.name) ? "default" : "outline"}
