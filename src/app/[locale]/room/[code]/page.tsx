@@ -38,6 +38,7 @@ export default async function RoomPage({ params }: PageProps) {
     select: {
       id: true,
       name: true,
+      description: true,
       creator: {
         select: {
           name: true,
