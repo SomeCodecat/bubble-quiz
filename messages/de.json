@@ -105,7 +105,9 @@
       "distCollection": "Nach Sammlung (Proportional)",
       "distConsistent": "Gleichmäßig (Equal split)",
       "distCustom": "Benutzerdefiniert",
-      "simultaneousJokers": "Gleichzeitige Joker erlauben"
+      "simultaneousJokers": "Gleichzeitige Joker erlauben",
+      "questionsLeft": "Fragen übrig: {n}",
+      "customHelp": "Bitte wähle oben Sammlungen oder Tags aus, um die Verteilung zu konfigurieren."
     },
     "questionNum": "Frage {n}",
     "points": "{n} Punkte",
@@ -114,7 +116,11 @@
       "spy": "Spion",
       "5050": "50/50",
       "risk": "Risiko"
-    }
+    },
+    "deleteLobbyTitle": "Lobby löschen?",
+    "deleteLobbyConfirm": "Bist du sicher, dass du diese Lobby löschen möchtest? Alle Spieler werden getrennt.",
+    "cancel": "Abbrechen",
+    "delete": "Löschen"
   },
   "Admin": {
     "title": "Admin Übersicht",
@@ -249,7 +255,6 @@
     "lockError": "Fehler beim Aktualisieren des Sperrstatus",
     "deleteConfirm": "Bist du sicher, dass du diese Sammlung löschen möchtest?",
     "deleted": "Sammlung gelöscht",
-    "deleted": "Sammlung gelöscht",
     "deleteError": "Fehler beim Löschen der Sammlung",
     "questionAdded": "Frage zur Sammlung hinzugefügt",
     "addError": "Fehler beim Hinzufügen der Frage",
@@ -277,7 +282,7 @@
     "confirmDelete": "Sammlung Löschen",
     "topic": "Thema",
     "topicPlaceholder": "z.B. Wissenschaft, Geschichte",
-    "count": "Anzahl",
+    "countLabel": "Anzahl",
     "difficulty": "Schwierigkeit",
     "easy": "Leicht",
     "medium": "Mittel",
@@ -288,5 +293,10 @@
   "Common": {
     "toggleTheme": "Design Wechseln",
     "language": "Sprache"
+  },
+  "NotFound": {
+    "title": "404",
+    "message": "Seite nicht gefunden",
+    "return": "Zurück zur Lobby"
   }
 }
