@@ -1,0 +1,132 @@
+yarn run v1.22.22
+$ vitest run --coverage
+
+[1m[46m RUN [49m[22m [36mv4.0.16 [39m[90m/home/max/Git/bubble-quiz[39m
+      [2mCoverage enabled with [22m[33mv8[39m
+
+ [32m✓[39m src/tests/collection-actions.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+[90mstdout[2m | src/tests/profile-actions.test.ts[2m > [22m[2mProfile Actions[2m > [22m[2mshould update profile successfully
+[22m[39mUpdate Profile Data: {
+  userId: [32m'u1'[39m,
+  username: [32m'new_user'[39m,
+  imageLength: [90mundefined[39m,
+  imageStart: [90mundefined[39m
+}
+
+[90mstdout[2m | src/tests/profile-actions.test.ts[2m > [22m[2mProfile Actions[2m > [22m[2mshould fail if username is taken
+[22m[39mUpdate Profile Data: {
+  userId: [32m'u1'[39m,
+  username: [32m'taken_user'[39m,
+  imageLength: [90mundefined[39m,
+  imageStart: [90mundefined[39m
+}
+
+[90mstdout[2m | src/tests/profile-actions.test.ts[2m > [22m[2mProfile Actions[2m > [22m[2mshould fail if user record not found
+[22m[39mUpdate Profile Data: {
+  userId: [32m'u1'[39m,
+  username: [32m'ghost'[39m,
+  imageLength: [90mundefined[39m,
+  imageStart: [90mundefined[39m
+}
+
+[90mstdout[2m | src/tests/profile-actions.test.ts[2m > [22m[2mProfile Actions[2m > [22m[2mshould return error on database fail
+[22m[39mUpdate Profile Data: {
+  userId: [32m'u1'[39m,
+  username: [32m'error_user'[39m,
+  imageLength: [90mundefined[39m,
+  imageStart: [90mundefined[39m
+}
+
+ [32m✓[39m src/tests/profile-actions.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/tests/complex-imports.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+[2025-12-30 13:55:50.358 +0100] [32mINFO[39m: [36mRoom TIMEOUT timed out due to inactivity[39m
+ [32m✓[39m src/tests/admin-lifecycle.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+[90mstdout[2m | src/tests/ultimate-coverage.test.ts[2m > [22m[2mUltimate Coverage: Common & Profile[2m > [22m[2mupdateProfile: should fail if user record not found
+[22m[39mUpdate Profile Data: {
+  userId: [32m'u1'[39m,
+  username: [32m'ghost'[39m,
+  imageLength: [90mundefined[39m,
+  imageStart: [90mundefined[39m
+}
+
+ [32m✓[39m src/tests/game-loop.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+[2025-12-30 13:45:49.394 +0100] [32mINFO[39m: [36mClient disconnected: sock-123[39m
+[90mstdout[2m | src/tests/comprehensive-coverage.test.ts[2m > [22m[2mComprehensive Coverage: Backup Utility[2m > [22m[2mshould create backup directory if missing
+[22m[39mDatabase backup created at: backups/backup-2025-12-30T12-45-49-411Z.sqlite
+
+ [32m✓[39m src/tests/question-management.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [32m✓[39m src/tests/advanced-strategies.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/tests/final-logic.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/tests/socket-logic.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/tests/comprehensive-coverage.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m src/tests/ultimate-coverage.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 48[2mms[22m[39m
+ [32m✓[39m src/tests/advanced-actions.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/tests/cleanup-trash.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/tests/utils.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+[90mstdout[2m | src/tests/middleware.test.ts[2m > [22m[2mMiddleware[2m > [22m[2mshould redirect unauthorized users from /admin
+[22m[39m[Middleware] Redirecting to: http://localhost/api/auth/signin
+[Middleware] Headers: { host: [1mnull[22m, xForwardedHost: [1mnull[22m, xOriginalHost: [1mnull[22m }
+
+ [32m✓[39m src/tests/onboarding-actions.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+[90mstdout[2m | src/tests/middleware.test.ts[2m > [22m[2mMiddleware[2m > [22m[2mshould redirect non-admin users from /admin
+[22m[39m[Middleware] Redirecting to: http://localhost/
+[Middleware] Headers: { host: [1mnull[22m, xForwardedHost: [1mnull[22m, xOriginalHost: [1mnull[22m }
+
+[90mstdout[2m | src/tests/middleware.test.ts[2m > [22m[2mMiddleware[2m > [22m[2mshould redirect users with no username to /onboarding
+[22m[39m[Middleware] Redirecting to: http://localhost/onboarding
+[Middleware] Headers: { host: [1mnull[22m, xForwardedHost: [1mnull[22m, xOriginalHost: [1mnull[22m }
+
+[90mstdout[2m | src/tests/middleware.test.ts[2m > [22m[2mMiddleware[2m > [22m[2mshould redirect logged-in users away from /register
+[22m[39m[Middleware] Redirecting to: http://localhost/lobby
+[Middleware] Headers: { host: [1mnull[22m, xForwardedHost: [1mnull[22m, xOriginalHost: [1mnull[22m }
+
+[90mstdout[2m | src/tests/middleware.test.ts[2m > [22m[2mMiddleware[2m > [22m[2mshould handle already onboarded users on /onboarding
+[22m[39m[Middleware] Redirecting to: http://localhost/lobby
+[Middleware] Headers: { host: [1mnull[22m, xForwardedHost: [1mnull[22m, xOriginalHost: [1mnull[22m }
+
+ [32m✓[39m src/tests/auth-actions.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/tests/backup-utility.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/tests/middleware.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/tests/error-paths.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/tests/game-manager.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/tests/import-logic.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m21 passed[39m[22m[90m (21)[39m
+[2m      Tests [22m [1m[32m205 passed[39m[22m[90m (205)[39m
+[2m   Start at [22m 13:45:48
+[2m   Duration [22m 1.46s[2m (transform 791ms, setup 0ms, import 1.95s, tests 303ms, environment 8.76s)[22m
+
+[34m % [39m[2mCoverage report from [22m[33mv8[39m
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   97.41 |    89.53 |   96.82 |   99.63 |                   
+ src               |   92.85 |    93.93 |     100 |   92.85 |                   
+  middleware.ts    |   92.85 |    93.93 |     100 |   92.85 | 56-58             
+ ...e]/(app)/admin |   99.17 |    95.52 |     100 |     100 |                   
+  actions.ts       |   99.17 |    95.52 |     100 |     100 | 61,174,238        
+ ...p)/collections |   94.23 |    88.05 |     100 |     100 |                   
+  actions.ts       |   93.75 |    85.71 |     100 |     100 | ...75,435,461,507 
+  ...rt-actions.ts |   95.83 |    94.44 |     100 |     100 | 35,96             
+ .../(app)/profile |   95.83 |    91.66 |     100 |     100 |                   
+  actions.ts       |   95.83 |    91.66 |     100 |     100 | 16                
+ ...app)/questions |     100 |      100 |     100 |     100 |                   
+  actions.ts       |     100 |      100 |     100 |     100 |                   
+ ...le]/onboarding |     100 |       90 |     100 |     100 |                   
+  actions.ts       |     100 |       90 |     100 |     100 | 27                
+ src/app/actions   |     100 |      100 |     100 |     100 |                   
+  auth.ts          |     100 |      100 |     100 |     100 |                   
+ .../cleanup-trash |     100 |      100 |     100 |     100 |                   
+  route.ts         |     100 |      100 |     100 |     100 |                   
+ src/i18n          |     100 |      100 |     100 |     100 |                   
+  routing.ts       |     100 |      100 |     100 |     100 |                   
+ src/lib           |     100 |    94.11 |     100 |     100 |                   
+  backup.ts        |     100 |      100 |     100 |     100 |                   
+  db.ts            |     100 |       75 |     100 |     100 | 7                 
+  utils.ts         |     100 |      100 |     100 |     100 |                   
+ src/lib/game      |   98.29 |    84.97 |   94.28 |     100 |                   
+  GameManager.ts   |    97.5 |    91.37 |   90.69 |     100 | ...39,162-173,288 
+  loop.ts          |     100 |      100 |     100 |     100 |                   
+  ...t-handlers.ts |   98.72 |    79.23 |     100 |     100 | ...56,261,285-298 
+-------------------|---------|----------|---------|---------|-------------------
+Done in 1.78s.
