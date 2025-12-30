@@ -86,3 +86,31 @@ docker run -p 3000:3000 -v $(pwd)/data:/app/data -e DATABASE_URL="file:/app/data
 ### GitHub Actions
 
 This repository includes a GitHub Workflow that automatically builds and pushes a Docker image to the GitHub Container Registry (GHCR) whenever changes are pushed to the `main` branch. The image is tagged with the version specified in `package.json` and `latest`.
+
+## Testing
+
+The project uses [Vitest](https://vitest.dev/) for unit and integration testing.
+
+### Running Tests
+
+To run the tests once:
+
+```bash
+yarn test
+```
+
+### Development Mode
+
+To run tests in watch mode during development:
+
+```bash
+yarn test:watch
+```
+
+### Coverage Report
+
+To generate a coverage report:
+
+```bash
+yarn test:coverage
+```
