@@ -1,0 +1,202 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// NextAuth.js Models
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  role          String    @default("USER") // ADMIN, USER
+  password      String?
+  username      String?   @unique
+  accounts      Account[]
+  sessions      Session[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Profile
+  bio       String?
+  isPublic  Boolean @default(false)
+
+  // Game Stats
+  gamesPlayed Int @default(0)
+  totalScore  Int @default(0)
+  
+  questions   Question[]
+  ownedQuestions Question[] @relation("OwnedQuestions")
+  deletedQuestions Question[] @relation("DeletedQuestions")
+  deletedCollections Collection[] @relation("DeletedCollections")
+  collections Collection[]
+  ownedCollections Collection[] @relation("OwnedCollections")
+  gameHistory GameHistory[]
+  
+  editLogs    QuestionEditLog[]
+}
+
+model GameHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  score     Int
+  rank      Int
+  playedAt  DateTime @default(now())
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?
+  access_token       String?
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Quiz Models
+
+model Question {
+  id            String   @id @default(uuid())
+  text          String
+  // Stored as JSON string or use a separate mapping if strict relations needed.
+  // For SQLite/Postgres compatibility, existing as JSON-like structure is fine, 
+  // but Prisma SQLite doesn't support native JSON type in older versions. 
+  // However, modern Prisma + SQLite supports String for JSON or similar.
+  // We'll use specific fields for simplicity and type safety.
+  
+  // Options will be stored as a JSON string for flexibility: ["A", "B", "C", "D"]
+  options       String   
+  correctIndex  Int
+  explanation   String?
+  
+  // Tags
+  tags          QuestionTag[]
+  collections   QuestionCollection[]
+
+  creatorId     String?
+  creator       User?    @relation(fields: [creatorId], references: [id])
+  
+  ownerId       String?
+  owner         User?    @relation("OwnedQuestions", fields: [ownerId], references: [id])
+  
+  isLocked      Boolean  @default(false) // If true, only creator can see/use
+  isPermanentlyPublic Boolean @default(false) // If true, cannot be locked by collection
+
+  // Metadata
+  category      String?
+  deletedAt     DateTime? // For soft delete / archive
+  deletedById   String?
+  deletedBy     User?     @relation("DeletedQuestions", fields: [deletedById], references: [id])
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  editLogs      QuestionEditLog[]
+}
+
+model QuestionEditLog {
+  id        String   @id @default(uuid())
+  questionId String
+  question  Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  
+  timestamp DateTime @default(now())
+  details   String?
+}
+
+model Tag {
+  id        String        @id @default(uuid())
+  name      String        @unique
+  slug      String        @unique
+  icon      String?       // Lucide icon name or similar
+  
+  isLocked  Boolean       @default(false)
+  creatorId String?       // If locked, we need to know who owns it
+  
+  questions QuestionTag[]
+}
+
+model QuestionTag {
+  questionId String
+  tagId      String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([questionId, tagId])
+}
+
+model Collection {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  isLocked    Boolean  @default(false)
+  
+  creatorId   String
+  creator     User     @relation(fields: [creatorId], references: [id])
+
+  ownerId     String?
+  owner       User?    @relation("OwnedCollections", fields: [ownerId], references: [id])
+  
+  questions   QuestionCollection[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  deletedAt   DateTime?
+  deletedById String?
+  deletedBy   User?     @relation("DeletedCollections", fields: [deletedById], references: [id])
+}
+
+model QuestionCollection {
+  questionId   String
+  collectionId String
+  question     Question   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@id([questionId, collectionId])
+}
+
+model SystemSetting {
+  key   String @id
+  value String
+}

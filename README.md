@@ -1,128 +1,88 @@
-# 🎮 Multiplayer Quiz Game (FastAPI + WebSockets)
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-A lightweight, real-time multiplayer quiz game built with **Python**, **FastAPI**, and **WebSockets**.  
-Players join rooms via code, answer multiple-choice questions, use jokers, and see live results — all in a permanent dark mode UI.
+## Getting Started
 
-Perfect as a small party game, demo project, or learning example for WebSockets.
+First, run the development server:
 
----
-
-## ✨ Features
-
-- 🔐 Create & join rooms via short room codes
-- 👑 Host controls: start game, reveal answers, next question, kick players
-- ⚡ Real-time multiplayer via WebSockets
-- ❓ 4-choice questions loaded from a CSV file
-- 🎲 Randomized answer order
-- 🃏 Jokers:
-  - **50/50** – removes two wrong answers
-  - **Spy** – see live answer picks of other players
-  - **Risk** – double points if correct, lose points if wrong
-  - Only **one joker per question** (globally)
-- 🟢 Answer reveal with:
-  - Correct answer highlighted in green
-  - Player names + avatars shown on chosen answers
-- 📊 Live scoreboard (name, avatar, score, connection state)
-- 🌙 Permanent dark mode
-- 🔁 Automatic reconnect on bad connections
-
----
-
-## 📁 Project Structure
-
-```text
-.
-├── main.py          # FastAPI server + Web UI (single-file app)
-├── questions.csv    # Quiz questions (CSV)
-└── README.md
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
-📄 CSV Format (questions.csv)
-csv
-Copy code
-Frage;Richtig;Falsch1;Falsch2;Falsch3
-Was ist 2+2?;4;3;5;22
-Hauptstadt von Frankreich?;Paris;Rom;Berlin;Madrid
-Separator: ;
 
-One question per line
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-Up to 30 questions are used per game
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-🚀 Setup & Run (Local)
-1) Create & activate virtual environment
-bash
-Copy code
-python -m venv venv
-# Windows
-venv\Scripts\activate
-# Linux / macOS
-source venv/bin/activate
-2) Install dependencies
-bash
-Copy code
-pip install fastapi "uvicorn[standard]"
-3) Start the server
-bash
-Copy code
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-4) Open in browser
-text
-Copy code
-http://localhost:8000
-Open multiple tabs or devices to test multiplayer.
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-🌐 Deploy Behind Nginx (WebSockets Ready)
-FastAPI runs internally (e.g. 127.0.0.1:8000), Nginx exposes it publicly.
+## Learn More
 
-Minimal Nginx config:
+To learn more about Next.js, take a look at the following resources:
 
-nginx
-Copy code
-map $http_upgrade $connection_upgrade {
-    default upgrade;
-    '' close;
-}
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-server {
-    listen 80;
-    server_name your-domain.com;
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-    location / {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
-        proxy_set_header Host $host;
-        proxy_read_timeout 3600;
-    }
-}
-With HTTPS (Let’s Encrypt), WebSockets automatically upgrade to wss://.
+## Deploy on Vercel
 
-🧠 Notes
-Game state is stored in memory (perfect for small games / parties)
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-Restarting the server resets all rooms
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
-Designed as a clean MVP — easy to extend with:
+## Docker Deployment
 
-Database (Redis/Postgres)
+### Prerequisites
 
-Auth / user accounts
+- Docker and Docker Compose installed on your machine.
 
-Question editor
+### Running with Docker Compose
 
-Mobile / desktop clients
+1.  **Clone the repository:**
 
-🛠️ Tech Stack
-Python 3.10+
+    ```bash
+    git clone https://github.com/yourusername/bubble-quiz.git
+    cd bubble-quiz
+    ```
 
-FastAPI
+2.  **Configure Environment Variables:**
+    The `docker-compose.yml` file comes with default environment variables. For production, you should update `NEXTAUTH_SECRET` and other provider secrets.
 
-Uvicorn
+    You can create a `.env` file or modify `docker-compose.yml` directly.
 
-WebSockets
+3.  **Run the container (Build from source):**
 
-Vanilla HTML / CSS / JS (no frontend framework)
+    ```bash
+    docker-compose up -d
+    ```
 
-📜 License
-MIT — do whatever you want, have fun 🎉
+    The application will be available at `http://localhost:3000`.
+    The SQLite database will be persisted in the `./data` directory.
+
+### Running with Pre-built Image (Production)
+
+If you want to run the application using the pre-built image from GitHub Container Registry without building it locally:
+
+1.  **Use the production compose file:**
+
+    Edit `docker-compose.prod.yml` and replace `your_github_username` with your actual username.
+
+    ```bash
+    docker-compose -f docker-compose.prod.yml up -d
+    ```
+
+### Building the Docker Image Manually
+
+```bash
+docker build -t bubble-quiz .
+docker run -p 3000:3000 -v $(pwd)/data:/app/data -e DATABASE_URL="file:/app/data/db.sqlite" bubble-quiz
+```
+
+### GitHub Actions
+
+This repository includes a GitHub Workflow that automatically builds and pushes a Docker image to the GitHub Container Registry (GHCR) whenever changes are pushed to the `main` branch. The image is tagged with the version specified in `package.json` and `latest`.
