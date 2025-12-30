@@ -56,6 +56,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 # Create a directory for the sqlite database and backups
 RUN mkdir -p /app/data /app/backups && chown nextjs:nodejs /app/data /app/backups
 
+# Ensure /tmp exists and is writable (fix for tsx in alpine)
+RUN mkdir -p /tmp && chmod 1777 /tmp
+
 USER nextjs
 
 EXPOSE 3000
