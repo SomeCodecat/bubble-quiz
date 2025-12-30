@@ -46,11 +46,17 @@ export async function importJSON(jsonString: string) {
     // Clean up JSON string (remove markdown code blocks if present)
     let cleanedJson = jsonString.replace(/```json\s*|\s*```/g, "").trim();
 
-    // Extract JSON object if there is extra text around it
+    // Extract JSON object/array if there is extra text around it
     const firstBrace = cleanedJson.indexOf("{");
+    const firstBracket = cleanedJson.indexOf("[");
+    const start = (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) ? firstBrace : firstBracket;
+
     const lastBrace = cleanedJson.lastIndexOf("}");
-    if (firstBrace !== -1 && lastBrace !== -1) {
-      cleanedJson = cleanedJson.substring(firstBrace, lastBrace + 1);
+    const lastBracket = cleanedJson.lastIndexOf("]");
+    const end = (lastBrace !== -1 && (lastBracket === -1 || lastBrace > lastBracket)) ? lastBrace : lastBracket;
+
+    if (start !== -1 && end !== -1 && start < end) {
+      cleanedJson = cleanedJson.substring(start, end + 1);
     }
 
     const data = JSON.parse(cleanedJson);
