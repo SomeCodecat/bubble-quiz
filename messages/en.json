@@ -105,7 +105,9 @@
       "distCollection": "By Collection (Proportional)",
       "distConsistent": "Consistent (Equal split)",
       "distCustom": "Custom",
-      "simultaneousJokers": "Allow Simultaneous Jokers"
+      "simultaneousJokers": "Allow Simultaneous Jokers",
+      "questionsLeft": "Questions left: {n}",
+      "customHelp": "Please select collections or tags above to configure distribution."
     },
     "questionNum": "Question {n}",
     "points": "{n} Points",
@@ -114,7 +116,11 @@
       "spy": "Spy",
       "5050": "50/50",
       "risk": "Risk"
-    }
+    },
+    "deleteLobbyTitle": "Delete Lobby?",
+    "deleteLobbyConfirm": "Are you sure you want to delete this lobby? All players will be disconnected.",
+    "cancel": "Cancel",
+    "delete": "Delete"
   },
   "Admin": {
     "title": "Admin Dashboard",
@@ -249,7 +255,6 @@
     "lockError": "Failed to update lock status",
     "deleteConfirm": "Are you sure you want to delete this collection?",
     "deleted": "Collection deleted",
-    "deleted": "Collection deleted",
     "deleteError": "Failed to delete collection",
     "questionAdded": "Question added to collection",
     "addError": "Failed to add question",
@@ -277,7 +282,7 @@
     "confirmDelete": "Delete Collection",
     "topic": "Topic",
     "topicPlaceholder": "e.g. Science, History",
-    "count": "Count",
+    "countLabel": "Count",
     "difficulty": "Difficulty",
     "easy": "Easy",
     "medium": "Medium",
@@ -288,5 +293,10 @@
   "Common": {
     "toggleTheme": "Toggle Theme",
     "language": "Language"
+  },
+  "NotFound": {
+    "title": "404",
+    "message": "Page Not Found",
+    "return": "Return to Lobby"
   }
 }
