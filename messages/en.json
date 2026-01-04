@@ -382,7 +382,7 @@
     "topic": "Topic",
     "topicPlaceholder": "e.g. Science, History",
     "countLabel": "Count",
-    "difficulty": "Difficulty",
+    "difficultyLabel": "Difficulty",
     "easy": "Easy",
     "medium": "Medium",
     "hard": "Hard",

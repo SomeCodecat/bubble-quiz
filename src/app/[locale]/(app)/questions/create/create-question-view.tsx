@@ -60,7 +60,7 @@ export function CreateQuestionView({
   const [jsonInput, setJsonInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [topic, setTopic] = useState("");
-  const [count, setCount] = useState("10");
+  const [count, setCount] = useState("30");
   const [difficulty, setDifficulty] = useState("mixed");
   const [language, setLanguage] = useState(locale);
   const [shouldCreateCollection, setShouldCreateCollection] = useState(
@@ -178,6 +178,20 @@ Output only raw JSON.
                   min={1}
                   max={50}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>{tImport("difficultyLabel")}</Label>
+                <Select value={difficulty} onValueChange={setDifficulty}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="mixed">Mixed</SelectItem>
+                    <SelectItem value="easy">Easy</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="hard">Hard</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>{tImport("language")}</Label>
