@@ -57,7 +57,13 @@ app.prepare().then(() => {
 
   io.on("connection", (socket) => {
     logger.info(`Client connected: ${socket.id}`);
+    gameManager.recordSocketConnect();
     registerHandlers(io, socket, gameManager);
+
+    socket.on("disconnect", () => {
+      logger.info(`Client disconnected: ${socket.id}`);
+      gameManager.recordSocketDisconnect();
+    });
   });
 
   // Backup Scheduler
