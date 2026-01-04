@@ -186,10 +186,10 @@ Output only raw JSON.
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="mixed">Mixed</SelectItem>
-                    <SelectItem value="easy">Easy</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="hard">Hard</SelectItem>
+                    <SelectItem value="mixed">{tImport("mixed")}</SelectItem>
+                    <SelectItem value="easy">{tImport("easy")}</SelectItem>
+                    <SelectItem value="medium">{tImport("medium")}</SelectItem>
+                    <SelectItem value="hard">{tImport("hard")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
