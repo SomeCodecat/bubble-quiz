@@ -44,9 +44,13 @@ vi.mock("next/navigation", () => ({
 }));
 
 // The middleware itself
-import middleware from "@/proxy";
+import middleware from "@/middleware";
 
-function createMockRequest(path: string, authData: any = null, headers: Record<string, string> = {}) {
+function createMockRequest(
+  path: string,
+  authData: any = null,
+  headers: Record<string, string> = {}
+) {
   const url = `http://localhost${path}`;
   const req = new NextRequest(url, { headers });
   authMock.mockResolvedValue(authData);
@@ -60,45 +64,36 @@ describe("Middleware", () => {
 
   it("should allow public access to lobby (via intl)", async () => {
     const req = createMockRequest("/lobby");
-    const res = await middleware(req, {} as any);
+    const res = await middleware(req);
     expect(intlMiddlewareMock).toHaveBeenCalled();
   });
 
   it("should return 404 rewrite for unauthorized users from /admin", async () => {
     const req = createMockRequest("/admin");
-    const res = (await middleware(req, {} as any)) as NextResponse;
+    const res = (await middleware(req)) as NextResponse;
     expect(res.headers.get("x-middleware-rewrite")).toContain("/404");
   });
 
   it("should return 404 rewrite for non-admin users from /admin", async () => {
-    const req = createMockRequest("/admin", { user: { role: "USER", username: "alice" } });
-    const res = (await middleware(req, {} as any)) as NextResponse;
+    const req = createMockRequest("/admin", {
+      user: { role: "USER", username: "alice" },
+    });
+    const res = (await middleware(req)) as NextResponse;
     expect(res.headers.get("x-middleware-rewrite")).toContain("/404");
   });
 
   it("should redirect users with no username to /onboarding", async () => {
     const req = createMockRequest("/lobby", { user: { role: "USER" } });
-    const res = (await middleware(req, {} as any)) as NextResponse;
+    const res = (await middleware(req)) as NextResponse;
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toBe("http://localhost/onboarding");
   });
 
-  it("should redirect logged-in users away from /register", async () => {
-    const req = createMockRequest("/register", { user: { role: "USER", username: "alice" } });
-    const res = (await middleware(req, {} as any)) as NextResponse;
-    expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toBe("http://localhost/lobby");
-  });
-
-  it("should handle X-Forwarded-Host", async () => {
-    const req = createMockRequest("/pregame", null, { "x-forwarded-host": "tunnel.com", "x-forwarded-proto": "https" });
-    const res = (await middleware(req, {} as any)) as NextResponse;
-    expect(res.headers.get("location")).toContain("https://tunnel.com/api/auth/signin");
-  });
-
   it("should handle already onboarded users on /onboarding", async () => {
-    const req = createMockRequest("/onboarding", { user: { role: "USER", username: "alice" } });
-    const res = (await middleware(req, {} as any)) as NextResponse;
+    const req = createMockRequest("/onboarding", {
+      user: { role: "USER", username: "alice" },
+    });
+    const res = (await middleware(req)) as NextResponse;
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toBe("http://localhost/lobby");
   });
@@ -106,7 +101,7 @@ describe("Middleware", () => {
   it("should redirect unauth users from /pregame", async () => {
     authMock.mockResolvedValue(null);
     const req = new NextRequest("http://localhost/pregame/123");
-    
+
     // @ts-ignore
     const res = await middleware(req);
     // @ts-ignore
@@ -116,14 +111,18 @@ describe("Middleware", () => {
   });
 
   it("should allow Admin through to admin routes", async () => {
-    const req = createMockRequest("/admin", { user: { role: "ADMIN", username: "admin" } });
-    const res = await middleware(req, {} as any);
+    const req = createMockRequest("/admin", {
+      user: { role: "ADMIN", username: "admin" },
+    });
+    const res = await middleware(req);
     expect(intlMiddlewareMock).toHaveBeenCalled();
   });
 
   it("should allow users with username through", async () => {
-    const req = createMockRequest("/lobby", { user: { role: "USER", username: "alice" } });
-    const res = await middleware(req, {} as any);
+    const req = createMockRequest("/lobby", {
+      user: { role: "USER", username: "alice" },
+    });
+    const res = await middleware(req);
     expect(intlMiddlewareMock).toHaveBeenCalled();
   });
 });

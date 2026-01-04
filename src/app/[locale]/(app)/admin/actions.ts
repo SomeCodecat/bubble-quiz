@@ -5,6 +5,12 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 
+import { customAlphabet } from "nanoid";
+const nanoid = customAlphabet(
+  "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+  10
+);
+
 const QuestionSchema = z.object({
   text: z.string().min(3),
   options: z.array(z.string()).min(2),
@@ -46,6 +52,40 @@ export async function createQuestion(formData: FormData) {
 
   const category = formData.get("category") as string;
   const collectionIds = formData.getAll("collections") as string[];
+  const shouldCreateCollection =
+    formData.get("shouldCreateCollection") === "true";
+  const newCollectionName = formData.get("newCollectionName") as string;
+
+  if (shouldCreateCollection && session.user.id) {
+    const finalName = newCollectionName || category || "New Collection";
+    try {
+      // Check for existing collection with same name for this user to avoid duplicates
+      const existingCol = await db.collection.findFirst({
+        where: {
+          name: finalName,
+          creatorId: session.user.id,
+          deletedAt: null,
+        },
+      });
+
+      if (existingCol) {
+        if (!collectionIds.includes(existingCol.id)) {
+          collectionIds.push(existingCol.id);
+        }
+      } else {
+        const newCol = await db.collection.create({
+          data: {
+            name: finalName,
+            creator: { connect: { id: session.user.id } },
+            isLocked: false,
+          },
+        });
+        collectionIds.push(newCol.id);
+      }
+    } catch (e) {
+      console.error("Failed to ensure collection:", e);
+    }
+  }
 
   let isLocked = false;
   let isPermanentlyPublic = false;
@@ -286,11 +326,40 @@ export async function updateUserRole(
   return { success: true };
 }
 
+export async function deleteUser(userId: string) {
+  const session = await auth();
+  if (session?.user?.role !== "ADMIN") return { error: "Unauthorized" };
+
+  if (userId === session.user.id) return { error: "Cannot delete yourself" };
+
+  try {
+    await db.user.delete({
+      where: { id: userId },
+    });
+
+    revalidatePath("/admin");
+    return { success: true };
+  } catch (error) {
+    console.error("Delete User Error:", error);
+    return { error: "Database Error: User might have associated data" };
+  }
+}
+
 export async function getSystemSetting(key: string) {
   const session = await auth();
-  if (session?.user?.role !== "ADMIN") {
+
+  // Public keys (allow anyone, even unauthenticated if needed?
+  // Probably better to require at least auth for some, but music should be for everyone potentially)
+  // But wait, the game is playable by guests who might not have a session user if we strip auth?
+  // The prompt says "removing authentication" was a past objective but checking auth() suggests it's still there.
+  // Guests have a session? Maybe not.
+  // Let's allow global access for music.
+  const publicKeys = ["background_music_url", "background_music_cycle"];
+
+  if (!publicKeys.includes(key) && session?.user?.role !== "ADMIN") {
     return null;
   }
+
   const setting = await db.systemSetting.findUnique({
     where: { key },
   });

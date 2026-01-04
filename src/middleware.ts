@@ -8,11 +8,13 @@ const intlMiddleware = createMiddleware(routing);
 
 export default async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  
+
   console.log(`\n[Proxy] INCOMING: ${req.method} ${req.url}`);
   console.log(`[Proxy] Cookies: ${req.headers.get("cookie") || "None"}`);
-  console.log(`[Proxy] Accept-Language: ${req.headers.get("accept-language") || "None"}`);
-  
+  console.log(
+    `[Proxy] Accept-Language: ${req.headers.get("accept-language") || "None"}`
+  );
+
   // Proxy-aware URL handling - DISABLED
   // const forwardedHost = req.headers.get("x-forwarded-host");
   // const forwardedProto = req.headers.get("x-forwarded-proto");
@@ -36,11 +38,12 @@ export default async function middleware(req: NextRequest) {
   const isPregameRoute = req.nextUrl.pathname.includes("/pregame");
   const isAdminRoute = req.nextUrl.pathname.includes("/admin");
   const isOnboardingRoute = req.nextUrl.pathname.includes("/onboarding");
-  const isRegisterRoute = req.nextUrl.pathname.includes("/register");
   const isApiAuthRoute = req.nextUrl.pathname.includes("/api/auth");
 
   // Debug logging
-  console.log(`[Proxy] ${req.method} ${req.nextUrl.pathname} (Auth: ${isAuth})`);
+  console.log(
+    `[Proxy] ${req.method} ${req.nextUrl.pathname} (Auth: ${isAuth})`
+  );
 
   // Helper using standard URL constructor which inherits protocol/host from req.url
   const getRedirectUrl = (path: string) => new URL(path, req.url);
@@ -54,16 +57,15 @@ export default async function middleware(req: NextRequest) {
   // Redirect logged-in users away from auth pages
   if (isAuth) {
     const user = (req as any).auth?.user;
-    if (isRegisterRoute || (isOnboardingRoute && user?.username)) {
-      console.log(`[Proxy] Redirecting Register/Onboarding -> /lobby`);
+    if (isOnboardingRoute && user?.username) {
+      console.log(`[Proxy] Redirecting Onboarding -> /lobby`);
       return NextResponse.redirect(getRedirectUrl("/lobby"));
     }
   }
 
   // 1. Auth Checks
   if (isPregameRoute && !isAuth) {
-    const signInUrl = getRedirectUrl("/api/auth/signin");
-    signInUrl.searchParams.set("callbackUrl", req.nextUrl.pathname);
+    const signInUrl = getRedirectUrl("/");
     return NextResponse.redirect(signInUrl);
   }
 
@@ -77,7 +79,7 @@ export default async function middleware(req: NextRequest) {
   }
 
   // 2. Onboarding Check
-  if (isAuth && !isOnboardingRoute && !isApiAuthRoute && !isRegisterRoute) {
+  if (isAuth && !isOnboardingRoute && !isApiAuthRoute) {
     const user = (req as any).auth?.user;
     // Note: user.username comes from JWT callback in auth.ts
     if (!user?.username) {
@@ -88,9 +90,17 @@ export default async function middleware(req: NextRequest) {
 
   const response = intlMiddleware(req);
   console.log(`[Proxy] Intl Response: Status=${response.status}`);
-  console.log(`[Proxy] Intl Location: ${response.headers.get("Location") || "None"}`);
-  console.log(`[Proxy] Intl Rewrite: ${response.headers.get("x-middleware-rewrite") || "None"}`);
-  console.log(`[Proxy] Set-Cookie: ${response.headers.get("set-cookie") || "None"}`);
+  console.log(
+    `[Proxy] Intl Location: ${response.headers.get("Location") || "None"}`
+  );
+  console.log(
+    `[Proxy] Intl Rewrite: ${
+      response.headers.get("x-middleware-rewrite") || "None"
+    }`
+  );
+  console.log(
+    `[Proxy] Set-Cookie: ${response.headers.get("set-cookie") || "None"}`
+  );
 
   return response;
 }

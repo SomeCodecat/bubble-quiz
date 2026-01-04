@@ -12,8 +12,10 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search } from "lucide-react";
-import { updateUserRole } from "./actions";
+import { updateUserRole, deleteUser } from "./actions";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { Trash2 } from "lucide-react";
 
 interface User {
   id: string;
@@ -81,24 +83,40 @@ export function UsersTab({ users }: { users: User[] }) {
                     </TableCell>
                     <TableCell className="flex items-center gap-2">
                       <span>{user.role}</span>
-                      {/* Prevent changing own role if current user (client-side check strictly for UI) */}
-                      {/* Ideally pass currentUserId prop or handle in server action result */}
-                      <form
-                        action={async () => {
-                          // Simple optimistic toggle for MVP
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-[10px] uppercase tracking-wider border"
+                        onClick={async () => {
                           const newRole =
                             user.role === "ADMIN" ? "USER" : "ADMIN";
-                          await updateUserRole(user.id, newRole);
+                          const res = await updateUserRole(user.id, newRole);
+                          if (res?.success) {
+                            toast.success(t("userUpdated"));
+                          } else {
+                            toast.error(res?.error || t("errorOccurred"));
+                          }
                         }}
                       >
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 text-[10px] uppercase tracking-wider border"
-                        >
-                          {user.role === "ADMIN" ? t("demote") : t("promote")}
-                        </Button>
-                      </form>
+                        {user.role === "ADMIN" ? t("demote") : t("promote")}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={async () => {
+                          if (confirm(t("deleteUser") + "?")) {
+                            const res = await deleteUser(user.id);
+                            if (res?.success) {
+                              toast.success(t("userDeleted"));
+                            } else {
+                              toast.error(res?.error || t("errorOccurred"));
+                            }
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                     <TableCell>{user.gamesPlayed}</TableCell>
                     <TableCell>{user.totalScore}</TableCell>

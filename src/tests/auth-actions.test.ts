@@ -16,6 +16,11 @@ vi.mock("bcryptjs", () => ({
   },
 }));
 
+vi.mock("@/lib/auth", () => ({
+  signIn: vi.fn(),
+  auth: vi.fn(),
+}));
+
 import { registerUser } from "@/app/actions/auth";
 
 describe("Auth Actions: registerUser", () => {

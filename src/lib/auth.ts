@@ -18,15 +18,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   session: { strategy: "jwt" }, // Use JWT for flexibility with credentials
   providers: [
-    {
-      id: "authentik",
-      name: "Authentik",
-      type: "oidc",
-      issuer: process.env.AUTHENTIK_ISSUER,
-      clientId: process.env.AUTHENTIK_CLIENT_ID,
-      clientSecret: process.env.AUTHENTIK_CLIENT_SECRET,
-      allowDangerousEmailAccountLinking: true,
-    },
+    ...(process.env.AUTHENTIK_ISSUER &&
+    process.env.AUTHENTIK_CLIENT_ID &&
+    process.env.AUTHENTIK_CLIENT_SECRET
+      ? [
+          {
+            id: "authentik",
+            name: "Authentik",
+            type: "oidc",
+            issuer: process.env.AUTHENTIK_ISSUER,
+            clientId: process.env.AUTHENTIK_CLIENT_ID,
+            clientSecret: process.env.AUTHENTIK_CLIENT_SECRET,
+            allowDangerousEmailAccountLinking: true,
+            profile(profile: any) {
+              return {
+                id: profile.sub,
+                name: profile.name,
+                email: profile.email,
+                image: profile.picture,
+                username: profile.preferred_username, // Map Authentik username
+                role: profile.role ?? "USER",
+              };
+            },
+          } as any,
+        ]
+      : []),
     Credentials({
       credentials: {
         email: { label: "Email or Username", type: "text" },
@@ -34,6 +50,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
       authorize: async (credentials) => {
         try {
+          console.log("[Auth] Authorize attempt:", credentials.email);
           const { email, password } = await loginSchema.parseAsync(credentials);
 
           const user = await db.user.findFirst({
@@ -43,24 +60,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           });
 
           if (!user) {
+            console.log("[Auth] User not found:", email);
             return null;
           }
 
           if (!user.password) {
+            console.log("[Auth] User has no password (OAauth only?):", email);
             return null;
           }
 
           const passwordsMatch = await bcrypt.compare(password, user.password);
           if (!passwordsMatch) {
+            console.log("[Auth] Password mismatch for:", email);
             return null;
           }
 
+          console.log("[Auth] Login successful for:", email);
           return {
             ...user,
             username: user.username ?? undefined,
           };
         } catch (e) {
-          console.error("Authorize error:", e);
+          console.error("[Auth] Authorize error:", e);
           return null;
         }
       },

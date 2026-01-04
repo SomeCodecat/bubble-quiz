@@ -2,13 +2,17 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "@/app/globals.css";
 import { SocketProvider } from "@/components/providers/socket-provider";
+import { MusicProvider } from "@/components/providers/music-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { SessionProvider } from "@/components/providers/session-provider";
-import { NextIntlClientProvider } from 'next-intl';
-import { getMessages } from 'next-intl/server';
-import { notFound } from 'next/navigation';
-import { routing } from '@/i18n/routing';
+import { NextIntlClientProvider } from "next-intl";
+import { getMessages } from "next-intl/server";
+import { notFound } from "next/navigation";
+import { routing } from "@/i18n/routing";
 import { Toaster } from "@/components/ui/sonner";
+import { LayoutContent } from "@/components/layout/layout-content";
+import { auth } from "@/lib/auth";
+import { UIProvider } from "@/components/providers/ui-provider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -16,13 +20,13 @@ export const metadata: Metadata = {
   title: "Bubble Quiz",
   description: "Real-time Multiplayer Quiz",
   icons: {
-    icon: '/icon',
+    icon: "/icon",
   },
 };
 
 export default async function RootLayout({
   children,
-  params
+  params,
 }: Readonly<{
   children: React.ReactNode;
   params: Promise<{ locale: string }>;
@@ -34,16 +38,23 @@ export default async function RootLayout({
   }
 
   const messages = await getMessages();
+  const session = await auth();
 
   return (
     <html lang={locale} suppressHydrationWarning>
       <body className={inter.className}>
         <NextIntlClientProvider messages={messages} locale={locale}>
-          <SessionProvider>
+          <SessionProvider session={session}>
             <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
               <SocketProvider>
-                {children}
-                <Toaster />
+                <MusicProvider>
+                  <UIProvider>
+                    <div className="flex h-screen overflow-hidden bg-background">
+                      <LayoutContent>{children}</LayoutContent>
+                    </div>
+                    <Toaster />
+                  </UIProvider>
+                </MusicProvider>
               </SocketProvider>
             </ThemeProvider>
           </SessionProvider>
