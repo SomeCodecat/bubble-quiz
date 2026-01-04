@@ -7,6 +7,22 @@ const POINTS_PER_QUESTION = 1;
 
 export class GameManager {
   private rooms: Map<string, RoomState> = new Map();
+  private totalSockets: number = 0;
+
+  getGlobalStats() {
+    return {
+      activeRooms: this.rooms.size,
+      onlineUsers: this.totalSockets,
+    };
+  }
+
+  recordSocketConnect() {
+    this.totalSockets++;
+  }
+
+  recordSocketDisconnect() {
+    this.totalSockets = Math.max(0, this.totalSockets - 1);
+  }
 
   createRoom(code: string, hostToken: string): RoomState {
     const normalizedCode = code.toUpperCase();
@@ -26,6 +42,7 @@ export class GameManager {
       livePicks: {},
       questionClosed: false,
       revealData: null,
+      lastRevealData: null,
       settings: {
         simultaneousJokers: false, // Default: One joker per round
       },
@@ -258,12 +275,22 @@ export class GameManager {
     }
 
     const options = JSON.parse(q.options) as string[];
+    // Create an array of indices based on options length and shuffle them
+    const indices = options.map((_, i) => i);
+    for (let i = indices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [indices[i], indices[j]] = [indices[j], indices[i]];
+    }
+
+    // Map correctIndex to the new position
+    const newCorrectIndex = indices.indexOf(q.correctIndex);
+    const shuffledChoices = indices.map((idx) => options[idx]);
 
     room.currentQ = {
       text: q.text,
-      choices: options,
+      choices: shuffledChoices,
     };
-    room.correctIndex = q.correctIndex;
+    room.correctIndex = newCorrectIndex;
     room.phase = "question";
     room.qDeadlineTs = Date.now() + QUESTION_TIME_SECONDS * 1000;
   }
@@ -319,6 +346,8 @@ export class GameManager {
         }
       }
     });
+
+    room.lastRevealData = room.revealData;
   }
 }
 

@@ -6,13 +6,15 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "@/i18n/routing";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Ghost, Pause, Play, SkipForward } from "lucide-react";
+import { Ghost, Pause, Play, SkipForward, LogOut } from "lucide-react";
 import clsx from "clsx";
 import { RoomState } from "@/lib/game/types";
 import { useTranslations } from "next-intl";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { MusicControls } from "@/components/common/music-controls";
 import { LanguageToggle } from "@/components/ui/language-toggle";
 import { calculateNewDistribution } from "@/lib/distribution";
+import { useUI } from "@/components/providers/ui-provider";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -97,6 +99,23 @@ export default function RoomClient({
   const [progress, setProgress] = useState(100);
   const rafRef = useRef<number | null>(null);
 
+  const { setSidebarVisible } = useUI();
+
+  // Manage sidebar visibility
+  useEffect(() => {
+    if (!room) return;
+    if (room.phase === "question" || room.phase === "reveal") {
+      setSidebarVisible(false);
+    } else {
+      setSidebarVisible(true);
+    }
+  }, [room?.phase, setSidebarVisible]);
+
+  // Reset on unmount
+  useEffect(() => {
+    return () => setSidebarVisible(true);
+  }, [setSidebarVisible]);
+
   useEffect(() => {
     if (!room) return;
 
@@ -106,9 +125,12 @@ export default function RoomClient({
         let remaining = 0;
 
         // Robust check: if pauseRemaining is set, treat as paused even if room.paused is falsy
-        const isPaused = room.paused || room.pauseRemaining !== undefined;
+        // Handle null because JSON serialization sends null for undefined
+        const isPaused =
+          room.paused ||
+          (room.pauseRemaining !== undefined && room.pauseRemaining !== null);
 
-        if (isPaused && room.pauseRemaining !== undefined) {
+        if (isPaused && room.pauseRemaining != null) {
           remaining = room.pauseRemaining;
         } else if (room.qDeadlineTs) {
           remaining = Math.max(0, room.qDeadlineTs - Date.now());
@@ -278,6 +300,11 @@ export default function RoomClient({
     // Validate
     if (selectedCollections.length === 0 && selectedTags.length === 0) {
       alert(t("selectError"));
+      return;
+    }
+
+    if (maxAvailable === 0) {
+      toast.error("Selected collections/tags have no questions!");
       return;
     }
 
@@ -468,7 +495,12 @@ export default function RoomClient({
             {code}
           </div>
           <div className="text-muted-foreground text-sm">
-            {t("round")} {room.questionIndex + 1}/
+            {t("round")}{" "}
+            {Math.min(
+              room.questionIndex + 1,
+              room.config?.totalQuestions || 30
+            )}
+            /
             {room.phase === "lobby"
               ? totalQuestions
               : room.config?.totalQuestions || 30}
@@ -480,7 +512,26 @@ export default function RoomClient({
           {room.phase === "reveal" && t("results")}
         </div>
         <div className="flex gap-2 items-center">
+          <div className="border rounded-md px-1 py-0.5">
+            <MusicControls />
+          </div>
           <ThemeToggle />
+
+          {!isHost && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                sessionStorage.removeItem("bq_player_token");
+                router.push("/");
+              }}
+              className="ml-2 bg-destructive/5 hover:bg-destructive/20 text-destructive border-transparent hover:border-destructive/30"
+            >
+              <LogOut size={14} className="mr-1.5" />
+              {t("leaveRoom")}
+            </Button>
+          )}
+
           {isHost && (room.phase === "question" || room.phase === "reveal") && (
             <>
               <Button
@@ -495,6 +546,35 @@ export default function RoomClient({
               >
                 {isPaused ? <Play size={16} /> : <Pause size={16} />}
               </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="text-destructive hover:bg-destructive/10 border-destructive/20 hover:border-destructive"
+                    title="End Game Early"
+                  >
+                    <Ghost size={16} />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{t("endGameTitle")}</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t("endGameConfirm")}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => socket?.emit("delete_room", code)}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {t("delete")}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
               <Button
                 size="icon"
                 variant="outline"
@@ -1522,6 +1602,125 @@ export default function RoomClient({
                     </div>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          )}
+
+          {room.phase === "finished" && (
+            <Card className="bg-card border-border min-h-[400px]">
+              <CardHeader>
+                <CardTitle className="text-center text-3xl font-black uppercase tracking-widest text-primary">
+                  Game Over
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-8">
+                <div className="text-center space-y-2">
+                  <p className="text-muted-foreground text-lg">
+                    Final Results for Round {room.questionIndex + 1}
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-4 max-w-md mx-auto">
+                  {Object.values(room.players)
+                    .sort((a, b) => b.score - a.score)
+                    .slice(0, 3)
+                    .map((player, idx) => (
+                      <div
+                        key={player.token}
+                        className={clsx(
+                          "flex items-center gap-4 p-4 rounded-xl border-2",
+                          idx === 0
+                            ? "border-yellow-500 bg-yellow-500/10 scale-105"
+                            : idx === 1
+                            ? "border-slate-400 bg-slate-400/10"
+                            : idx === 2
+                            ? "border-orange-600 bg-orange-600/10"
+                            : "border-border"
+                        )}
+                      >
+                        <div className="font-black text-2xl w-8 text-center">
+                          {idx === 0 ? "🥇" : idx === 1 ? "🥈" : "🥉"}
+                        </div>
+                        <UserAvatar
+                          src={player.avatar}
+                          name={player.name}
+                          className="w-12 h-12"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-lg truncate">
+                            {player.name}
+                          </div>
+                        </div>
+                        <div className="font-black text-2xl">
+                          {player.score}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+
+                <div className="flex justify-center gap-4 pt-4 flex-col items-center">
+                  {room.lastRevealData && (
+                    <div className="w-full max-w-2xl bg-muted/30 p-4 rounded-lg border border-border/50 space-y-4">
+                      <h4 className="text-center font-bold text-sm uppercase tracking-widest text-muted-foreground">
+                        Final Question Analysis
+                      </h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        {[0, 1, 2, 3].map((idx) => {
+                          const picks =
+                            room.lastRevealData?.picksByChoice[idx] || [];
+                          const isCorrect =
+                            idx === room.lastRevealData?.correctIndex;
+                          if (picks.length === 0 && !isCorrect) return null;
+                          return (
+                            <div
+                              key={idx}
+                              className={clsx(
+                                "p-3 rounded-md border flex flex-col gap-2",
+                                isCorrect
+                                  ? "border-green-500 bg-green-500/10"
+                                  : "border-border bg-card"
+                              )}
+                            >
+                              <div className="text-xs font-bold truncate">
+                                {room.currentQ?.choices[idx]}
+                              </div>
+                              <div className="flex -space-x-2 overflow-hidden justify-center">
+                                {picks.map((p, pIdx) => (
+                                  <UserAvatar
+                                    key={p.token}
+                                    src={p.avatar}
+                                    name={p.name}
+                                    className="w-6 h-6 ring-2 ring-background"
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-4">
+                    <Button
+                      onClick={() => router.push("/")}
+                      variant="outline"
+                      size="lg"
+                    >
+                      {t("leaveRoom", { defaultValue: "Leave Room" })}
+                    </Button>
+
+                    {isHost && (
+                      <Button
+                        onClick={() => socket?.emit("reset_game", { code })}
+                        size="lg"
+                        className="bg-green-600 hover:bg-green-700 font-bold"
+                      >
+                        {t("newRound", { defaultValue: "New Round" })}
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )}

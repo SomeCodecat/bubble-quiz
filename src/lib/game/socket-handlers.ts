@@ -56,7 +56,6 @@ export function registerHandlers(io: Server, socket: Socket, gameManager: GameMa
 
     const room = gameManager.getRoom(code);
     if (room) {
-      room.lastActivity = Date.now();
       socket.join(code);
 
       // Check if player exists by token
@@ -137,7 +136,6 @@ export function registerHandlers(io: Server, socket: Socket, gameManager: GameMa
     );
 
     if (room && room.phase === "question" && player) {
-      room.lastActivity = Date.now();
       player.selectedChoice = choice;
 
       // Emit update so host sees progress
@@ -217,6 +215,40 @@ export function registerHandlers(io: Server, socket: Socket, gameManager: GameMa
     }
   });
 
+  socket.on("reset_game", ({ code }) => {
+    const room = gameManager.getRoom(code);
+    const player = Object.values(room?.players || {}).find(
+      (p) => p.socketId === socket.id
+    );
+
+    if (room && player && room.hostToken === player.token) {
+      if (room.phase === "finished") {
+        room.phase = "lobby";
+        room.questionIndex = -1;
+        room.questionOrder = [];
+        room.currentQ = null;
+        room.correctIndex = null;
+        room.qDeadlineTs = null;
+        room.revealData = null;
+        room.paused = false;
+        
+        // Reset player states but keep scores? Usually new round means new game, so reset scores.
+        Object.values(room.players).forEach((p) => {
+          p.score = 0;
+          p.selectedChoice = null;
+          p.joker5050 = true;
+          p.jokerSpy = true;
+          p.jokerRisk = true;
+          p.usedRiskThisQ = false;
+          p.usedSpyThisQ = false;
+          p.used5050ThisQ = false;
+        });
+        
+        io.to(code).emit("room:update", { room });
+      }
+    }
+  });
+
   socket.on("delete_room", (data) => {
     const code = typeof data === "string" ? data : data.code;
     const room = gameManager.getRoom(code);
@@ -273,7 +305,9 @@ export function registerHandlers(io: Server, socket: Socket, gameManager: GameMa
       ) {
         room.revealDeadlineTs = now + room.pauseRemaining;
       }
-      room.pauseRemaining = undefined;
+      room.pauseRemaining = undefined; // reset
+      // Force null for client update if strict JSON serialization is used
+      (room as any).pauseRemaining = null;
       io.to(code).emit("room:update", { room });
     }
   });
@@ -305,6 +339,7 @@ export function registerHandlers(io: Server, socket: Socket, gameManager: GameMa
       const { roomCode } = result;
       const room = gameManager.getRoom(roomCode);
       if (room) {
+        room.lastActivity = Date.now();
         io.to(roomCode).emit("room:update", { room });
       }
     }

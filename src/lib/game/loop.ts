@@ -29,16 +29,26 @@ export function startGameLoop(room: RoomState, io: Server, gameManager: GameMana
     const activePlayers = Object.values(room.players).filter(
       (p: any) => p.connected
     ).length;
+
+    // Timeout if no active players for INACTIVITY_TIMEOUT
     if (activePlayers === 0) {
       if (now - room.lastActivity > INACTIVITY_TIMEOUT) {
-        logger.info(`Room ${room.code} timed out due to inactivity`);
-        room.phase = "finished";
-        io.to(room.code).emit("room:update", { room });
+        logger.info(`Room ${room.code} timed out (no players)`);
+        gameManager.deleteRoom(room.code);
+        io.to(room.code).emit("room:deleted"); 
         clearInterval(interval);
         return;
       }
-    } else {
-      room.lastActivity = now;
+    }
+
+    // Additional safeguard: Timeout rooms that stay in 'lobby' too long even with players
+    const LOBBY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+    if (room.phase === "lobby" && now - room.createdAt > LOBBY_TIMEOUT) {
+        logger.info(`Room ${room.code} timed out (lobby too long)`);
+        gameManager.deleteRoom(room.code);
+        io.to(room.code).emit("room:deleted");
+        clearInterval(interval);
+        return;
     }
 
     if (room.paused) return; // Skip timer logic if paused

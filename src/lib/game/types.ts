@@ -58,6 +58,14 @@ export interface RoomState {
     >;
     pointsForThisRound?: number;
   } | null;
+  lastRevealData: {
+    correctIndex: number;
+    picksByChoice: Record<
+      number,
+      { name: string; avatar: string; token: string }[]
+    >;
+    pointsForThisRound?: number;
+  } | null;
 
   settings: {
     simultaneousJokers: boolean;
