@@ -21,11 +21,12 @@ import {
   LayoutGrid,
   List,
 } from "lucide-react";
-import { getAvailableCollections, searchQuestions } from "./actions";
-import { AddQuestionButton } from "./collection-actions-client";
+import { getAvailableCollections, searchQuestions, addQuestionsToCollection } from "./actions";
 import { useDebounce } from "use-debounce";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
+import { Check } from "lucide-react";
+import { toast } from "sonner";
 
 interface Props {
   targetCollectionId: string;
@@ -41,8 +42,12 @@ export function QuestionPicker({ targetCollectionId }: Props) {
   const [collections, setCollections] = useState<any[]>([]);
   const [questions, setQuestions] = useState<any[]>([]);
   const [isPending, startTransition] = useTransition();
+  const [isAdding, setIsAdding] = useState(false);
 
   const [debouncedSearch] = useDebounce(searchQuery, 300);
+
+  // Local selection state
+  const [selectedQuestionIds, setSelectedQuestionIds] = useState<Set<string>>(new Set());
 
   // Load Collections on open
   useEffect(() => {
@@ -53,6 +58,7 @@ export function QuestionPicker({ targetCollectionId }: Props) {
         // Initial load of all questions
         const qs = await searchQuestions("", null);
         setQuestions(qs);
+        setSelectedQuestionIds(new Set()); // Reset on open
       });
     }
   }, [open]);
@@ -66,6 +72,36 @@ export function QuestionPicker({ targetCollectionId }: Props) {
     });
   }, [debouncedSearch, selectedCollection, open]);
 
+  const toggleSelection = (id: string) => {
+    const next = new Set(selectedQuestionIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedQuestionIds(next);
+  };
+
+  const handleBulkAdd = async () => {
+    const ids = Array.from(selectedQuestionIds);
+    if (ids.length === 0) return;
+
+    setIsAdding(true);
+    try {
+      const res = await addQuestionsToCollection(targetCollectionId, ids);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success(t("questionAdded", { count: res.count ?? 0 }));
+        setOpen(false);
+      }
+    } catch (e) {
+      toast.error(t("addError"));
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -74,18 +110,34 @@ export function QuestionPicker({ targetCollectionId }: Props) {
           {t("addQuestions")}
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[95vw] max-w-[95vw] w-[95vw] h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
-        <DialogHeader className="p-4 border-b shrink-0">
-          <DialogTitle>{t("addQuestionsTitle")}</DialogTitle>
-          <DialogDescription>{t("addQuestionsDesc")}</DialogDescription>
-          <div className="relative mt-2">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder={t("searchPlaceholder")}
-              className="pl-9"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+      <DialogContent className="sm:max-w-[95vw] max-w-[95vw] w-[95vw] h-[90vh] flex flex-col gap-0 p-0 overflow-hidden text-foreground bg-background">
+        <DialogHeader className="p-4 border-b shrink-0 flex flex-row items-center justify-between gap-4">
+          <div className="flex-1">
+            <DialogTitle>{t("addQuestionsTitle")}</DialogTitle>
+            <DialogDescription>{t("addQuestionsDesc")}</DialogDescription>
+            <div className="relative mt-2 max-w-md">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={t("searchPlaceholder")}
+                className="pl-9"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+             {selectedQuestionIds.size > 0 && (
+                <div className="text-sm font-medium text-muted-foreground hidden sm:block">
+                  {selectedQuestionIds.size} selected
+                </div>
+             )}
+             <Button 
+                onClick={handleBulkAdd} 
+                disabled={isAdding || selectedQuestionIds.size === 0}
+                className="font-bold"
+             >
+                {isAdding ? t("saving") : t("addQuestionsCount", { count: selectedQuestionIds.size, defaultValue: `Add ${selectedQuestionIds.size} Questions` })}
+             </Button>
           </div>
         </DialogHeader>
 
@@ -152,28 +204,42 @@ export function QuestionPicker({ targetCollectionId }: Props) {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {questions.map((q) => (
-                  <div
-                    key={q.id}
-                    className="border rounded-lg p-3 flex flex-col gap-2 hover:bg-muted/5 transition-colors group relative"
-                  >
-                    <div className="flex-1">
-                      <div className="font-medium line-clamp-2 text-sm">
-                        {q.text}
+                {questions.map((q) => {
+                  const isSelected = selectedQuestionIds.has(q.id);
+                  return (
+                    <div
+                      key={q.id}
+                      onClick={() => toggleSelection(q.id)}
+                      className={cn(
+                        "border rounded-lg p-3 flex flex-col gap-2 transition-all cursor-pointer group relative",
+                        isSelected ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/5"
+                      )}
+                    >
+                      <div className="flex-1">
+                        <div className="font-medium line-clamp-2 text-sm">
+                          {q.text}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                          <User className="h-3 w-3" />
+                          {q.creator?.username || q.creator?.name || t("unknown")}
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                        <User className="h-3 w-3" />
-                        {q.creator?.username || q.creator?.name || t("unknown")}
+                      <div className="flex items-center justify-end mt-2">
+                        <Button 
+                          size="sm" 
+                          variant={isSelected ? "default" : "secondary"} 
+                          className="h-7 w-7 p-0 rounded-full"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleSelection(q.id);
+                          }}
+                        >
+                          {isSelected ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center justify-end mt-2">
-                      <AddQuestionButton
-                        collectionId={targetCollectionId}
-                        questionId={q.id}
-                      />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {!isPending && questions.length === 0 && (
                   <div className="col-span-full text-center py-10 text-muted-foreground">
                     {t("noQuestionsFound")}

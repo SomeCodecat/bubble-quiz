@@ -4,6 +4,12 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { customAlphabet } from "nanoid";
+
+const nanoid = customAlphabet(
+  "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+  10
+);
 
 const QuestionImportSchema = z.object({
   text: z.string(),
@@ -30,7 +36,11 @@ function slugify(text: string) {
     .replace(/\-\-+/g, "-");
 }
 
-export async function importJSON(jsonString: string) {
+export async function importJSON(
+  jsonString: string,
+  shouldCreateCollection: boolean = true,
+  targetCollectionIds?: string[]
+) {
   const session = await auth();
   if (!session?.user?.id) return { error: "Unauthorized" };
 
@@ -49,11 +59,17 @@ export async function importJSON(jsonString: string) {
     // Extract JSON object/array if there is extra text around it
     const firstBrace = cleanedJson.indexOf("{");
     const firstBracket = cleanedJson.indexOf("[");
-    const start = (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) ? firstBrace : firstBracket;
+    const start =
+      firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)
+        ? firstBrace
+        : firstBracket;
 
     const lastBrace = cleanedJson.lastIndexOf("}");
     const lastBracket = cleanedJson.lastIndexOf("]");
-    const end = (lastBrace !== -1 && (lastBracket === -1 || lastBrace > lastBracket)) ? lastBrace : lastBracket;
+    const end =
+      lastBrace !== -1 && (lastBracket === -1 || lastBrace > lastBracket)
+        ? lastBrace
+        : lastBracket;
 
     if (start !== -1 && end !== -1 && start < end) {
       cleanedJson = cleanedJson.substring(start, end + 1);
@@ -79,15 +95,33 @@ export async function importJSON(jsonString: string) {
     }
 
     for (const colData of collectionsToImport) {
-      // Create Collection
-      const collection = await db.collection.create({
-        data: {
-          name: colData.name || "Imported Collection",
-          description: colData.description,
-          creator: { connect: { id: session.user.id as string } },
-          isLocked: true, // Default to private
-        },
-      });
+      let collectionIds: string[] = targetCollectionIds || [];
+
+      if (shouldCreateCollection) {
+        // ... (existing logic for creating new collection)
+        const existingCol = await db.collection.findFirst({
+          where: {
+            name: colData.name || "Imported Collection",
+            creatorId: session.user.id,
+            deletedAt: null,
+          },
+        });
+
+        if (existingCol) {
+          collectionIds.push(existingCol.id);
+        } else {
+          // Create Collection
+          const collection = await db.collection.create({
+            data: {
+              name: colData.name || "Imported Collection",
+              description: colData.description,
+              creator: { connect: { id: session.user.id as string } },
+              isLocked: true, // Default to private
+            },
+          });
+          collectionIds.push(collection.id);
+        }
+      }
 
       // Create Questions
       for (const q of colData.questions) {
@@ -101,13 +135,7 @@ export async function importJSON(jsonString: string) {
         const existingQuestion = await db.question.findFirst({
           where: {
             text: q.text,
-            options: optionsStr, // Exact match on options
-            // Optional: Check match on other fields if desired, but text + options is usually enough uniqueness
-            // deletedAt: null // Reuse even if deleted? Or ignore deleted?
-            // Let's reuse active questions. If deleted, we probably want to create new or restore?
-            // For simplicity: Reuse ANY matching question to prevent clutter, but preferably active.
-            // If we match a deleted question, we might want to restore it?
-            // Let's stick to: If active exists, reuse. If not, create new.
+            options: optionsStr,
             deletedAt: null,
           },
         });
@@ -117,6 +145,7 @@ export async function importJSON(jsonString: string) {
         if (!questionId) {
           const question = await db.question.create({
             data: {
+              shortCode: nanoid(),
               text: q.text,
               options: optionsStr,
               correctIndex: q.correctIndex,
@@ -140,17 +169,6 @@ export async function importJSON(jsonString: string) {
           });
           questionId = question.id;
         } else {
-          // Found existing question.
-          // Be careful: if it's "Private" and owned by someone else?
-          // "Public/Private" is mostly about SEARCH visibility.
-          // If import gives exact text+options, we treat it as "same question".
-          // However, linking a Private question owned by User A to User B's collection is tricky.
-          // If User B imports it, they "expect" to own it or have access.
-          // If we reuse User A's private question, User B is now depending on it.
-          // SAFE APPROACH: Only reuse if:
-          // 1. Owned by current User
-          // 2. OR Public (isLocked: false)
-
           if (
             existingQuestion &&
             existingQuestion.creatorId !== session.user.id &&
@@ -159,6 +177,7 @@ export async function importJSON(jsonString: string) {
             // Cannot reuse someone else's private question. Create a duplicate for me.
             const question = await db.question.create({
               data: {
+                shortCode: nanoid(),
                 text: q.text,
                 options: optionsStr,
                 correctIndex: q.correctIndex,
@@ -169,17 +188,40 @@ export async function importJSON(jsonString: string) {
             });
             questionId = question.id;
           }
-          // Else: Reuse allowed.
         }
 
-        // Link
-        // Check if already linked to this new collection? (Unlikely since new collection)
-        await db.questionCollection.create({
-          data: {
-            collectionId: collection.id,
-            questionId: questionId,
-          },
-        });
+        // Link to ALL target collections
+        if (questionId && collectionIds.length > 0) {
+          // Use createMany if supported or loop
+          // QuestionCollection has composite key? No, probably ID.
+          // Check Schema: QuestionCollection id @default(cuid())
+
+          // Just loop and create, ignoring duplicates (or use connect)
+          // But QuestionCollection is a join table.
+          // To be safe against duplicates, we can check existing links?
+          // Or just try/catch unique constraint if composite unique exists.
+          // Schema has @@unique([questionId, collectionId]) likely.
+
+          for (const colId of collectionIds) {
+            // Ensure unique
+            const exists = await db.questionCollection.findUnique({
+              where: {
+                questionId_collectionId: {
+                  questionId: questionId,
+                  collectionId: colId,
+                },
+              },
+            });
+            if (!exists) {
+              await db.questionCollection.create({
+                data: {
+                  collectionId: colId,
+                  questionId: questionId,
+                },
+              });
+            }
+          }
+        }
       }
     }
 

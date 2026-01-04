@@ -10,11 +10,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState } from "react";
+import { useState, KeyboardEvent } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useTranslations } from "next-intl";
+import { X, Sparkles, Library } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 
 interface Collection {
   id: string;
@@ -39,6 +42,65 @@ interface Props {
   availableCollections?: Collection[];
 }
 
+function TagInput({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string[];
+  onChange: (tags: string[]) => void;
+  placeholder: string;
+}) {
+  const [inputValue, setInputValue] = useState("");
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if ((e.key === "Enter" || e.key === ",") && inputValue.trim()) {
+      e.preventDefault();
+      const newTag = inputValue.trim().replace(/^,|,$/g, "");
+      if (newTag && !value.includes(newTag)) {
+        onChange([...value, newTag]);
+      }
+      setInputValue("");
+    } else if (e.key === "Backspace" && !inputValue && value.length > 0) {
+      onChange(value.slice(0, -1));
+    }
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    onChange(value.filter((t) => t !== tagToRemove));
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2 mb-2 p-2 border rounded-md bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ring-offset-background transition-shadow min-h-[42px]">
+        {value.map((tag) => (
+          <Badge
+            key={tag}
+            variant="secondary"
+            className="pl-2 pr-1 py-0.5 gap-1 flex items-center"
+          >
+            {tag}
+            <button
+              type="button"
+              onClick={() => removeTag(tag)}
+              className="hover:bg-muted rounded-full p-0.5 transition-colors"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </Badge>
+        ))}
+        <input
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={value.length === 0 ? placeholder : ""}
+          className="flex-1 bg-transparent border-none outline-none text-sm min-w-[120px]"
+        />
+      </div>
+    </div>
+  );
+}
+
 export function QuestionForm({
   initialData,
   onSubmit,
@@ -48,10 +110,16 @@ export function QuestionForm({
 }: Props) {
   const t = useTranslations("Questions");
   const [loading, setLoading] = useState(false);
+  const [tags, setTags] = useState<string[]>(initialData?.tags || []);
+  const [createCollection, setCreateCollection] = useState(!initialData?.id);
+  const [category, setCategory] = useState(initialData?.category || "");
   const router = useRouter();
 
   const handleSubmit = async (formData: FormData) => {
     setLoading(true);
+    // Add tags to formData
+    formData.set("tags", tags.join(","));
+
     try {
       await onSubmit(formData);
       toast.success(t("success"));
@@ -89,16 +157,16 @@ export function QuestionForm({
             placeholder={t("categoryPlaceholder")}
             className="bg-background"
             defaultValue={initialData?.category}
+            onChange={(e) => setCategory(e.target.value)}
           />
         </div>
 
         <div className="space-y-2">
           <Label>{t("tagsLabel")}</Label>
-          <Input
-            name="tags"
+          <TagInput
+            value={tags}
+            onChange={setTags}
             placeholder={t("tagsPlaceholder")}
-            className="bg-background"
-            defaultValue={initialData?.tags?.join(", ")}
           />
         </div>
       </div>
@@ -145,18 +213,74 @@ export function QuestionForm({
         </Select>
       </div>
 
+      {!initialData?.id && (
+        <div className="space-y-4 border p-4 rounded-xl bg-primary/5 border-primary/20 shadow-sm transition-all animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Sparkles className="h-4 w-4 text-primary" />
+              </div>
+              <div className="space-y-0.5">
+                <Label className="text-sm font-bold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  {t("createCollectionToggle")}
+                </Label>
+              </div>
+            </div>
+            <Switch
+              name="createCollection"
+              checked={createCollection}
+              onCheckedChange={setCreateCollection}
+            />
+            {/* Hidden input for form action since SwitchPrimitive.Root doesn't always populate value in FormData correctly for all next versions */}
+            <input
+              type="hidden"
+              name="shouldCreateCollection"
+              value={createCollection ? "true" : "false"}
+            />
+          </div>
+
+          {createCollection && (
+            <div className="space-y-2 pt-2 animate-in fade-in zoom-in-95 duration-200">
+              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">
+                {t("newCollectionName")}
+              </Label>
+              <Input
+                name="newCollectionName"
+                placeholder={category || t("newCollection")}
+                defaultValue={category || ""}
+                className="bg-background border-primary/20 focus-visible:ring-primary/30"
+              />
+            </div>
+          )}
+        </div>
+      )}
+
       {availableCollections.length > 0 && (
-        <div className="space-y-3 border p-4 rounded-md bg-muted/20">
-          <Label>{t("collectionsLabel")}</Label>
-          <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-3 border p-4 rounded-xl bg-muted/20 border-dashed">
+          <Label className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+            <Library className="h-4 w-4" />
+            {t("collectionsLabel")}
+          </Label>
+          <div className="grid grid-cols-2 gap-3">
             {availableCollections.map((col) => (
-              <div key={col.id} className="flex items-center space-x-2">
+              <div
+                key={col.id}
+                className="flex items-center space-x-2 bg-background/50 p-2 rounded-lg border hover:bg-background transition-colors cursor-pointer"
+                onClick={() => {
+                  const cb = document.getElementById(
+                    `col-${col.id}`
+                  ) as HTMLInputElement;
+                  if (cb) cb.click();
+                }}
+              >
                 <Checkbox
+                  id={`col-${col.id}`}
                   name="collections"
                   value={col.id}
                   defaultChecked={initialData?.collectionIds?.includes(col.id)}
+                  onClick={(e) => e.stopPropagation()}
                 />
-                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                <label className="text-sm font-medium leading-none cursor-pointer flex-1 truncate">
                   {col.name}
                 </label>
               </div>

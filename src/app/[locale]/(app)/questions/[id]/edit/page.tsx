@@ -23,7 +23,12 @@ export default async function EditQuestionPage({ params }: Props) {
   }
 
   const question = await db.question.findUnique({
-    where: { id }
+    where: { id },
+    include: {
+        tags: {
+            include: { tag: true }
+        }
+    }
   });
 
   if (!question) notFound();
@@ -73,7 +78,9 @@ export default async function EditQuestionPage({ params }: Props) {
                   id: question.id,
                   text: question.text,
                   options: JSON.parse(question.options),
-                  correctIndex: question.correctIndex
+                  correctIndex: question.correctIndex,
+                  category: question.category || "",
+                  tags: question.tags.map(qt => qt.tag.name)
               }}
               onSubmit={updateQuestion} 
               title="Edit Question"

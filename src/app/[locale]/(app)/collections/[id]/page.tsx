@@ -14,6 +14,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { CollectionQuestionsView } from "./collection-questions-view";
 import { QuestionPicker } from "../question-picker";
+import { EditCollectionDialog } from "../rename-collection-dialog";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -45,12 +46,12 @@ export default async function CollectionDetailsPage({ params }: Props) {
     notFound();
   }
 
-  const parsedCollectionQuestions = collection.questions.map(cq => ({
+  const parsedCollectionQuestions = collection.questions.map((cq) => ({
     ...cq,
     question: {
       ...cq.question,
-      options: JSON.parse(cq.question.options) as string[]
-    }
+      options: JSON.parse(cq.question.options) as string[],
+    },
   }));
 
   const isOwner =
@@ -76,8 +77,8 @@ export default async function CollectionDetailsPage({ params }: Props) {
               <h1 className="text-3xl font-bold">{collection.name}</h1>
               {collection.isLocked && (
                 <div className="flex items-center gap-1 bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-full text-xs font-mono uppercase tracking-widest border border-amber-500/20">
-                    <Lock className="h-3 w-3" />
-                    <span>Private</span>
+                  <Lock className="h-3 w-3" />
+                  <span>Private</span>
                 </div>
               )}
             </div>
@@ -87,11 +88,20 @@ export default async function CollectionDetailsPage({ params }: Props) {
           </div>
           {isOwner && (
             <div className="flex gap-2">
+              <EditCollectionDialog
+                collectionId={id}
+                currentName={collection.name}
+                currentDescription={collection.description}
+                variant="full"
+              />
               <CollectionLockToggle
                 collectionId={id}
                 isLocked={collection.isLocked}
               />
-              <CollectionDeleteButton collectionId={id} collectionName={collection.name} />
+              <CollectionDeleteButton
+                collectionId={id}
+                collectionName={collection.name}
+              />
             </div>
           )}
         </div>
@@ -103,7 +113,17 @@ export default async function CollectionDetailsPage({ params }: Props) {
               <h2 className="text-xl font-semibold">
                 {t("questions")} ({collection.questions.length})
               </h2>
-              {canEdit && <QuestionPicker targetCollectionId={id} />}
+              <div className="flex gap-2">
+                {canEdit && <QuestionPicker targetCollectionId={id} />}
+                {canEdit && (
+                  <Link href={`/questions/create?collectionId=${id}`}>
+                    <Button variant="outline" className="flex gap-2">
+                      <Plus className="h-4 w-4" />
+                      {t("createQuestion", { defaultValue: "Create Question" })}
+                    </Button>
+                  </Link>
+                )}
+              </div>
             </div>
             {collection.questions.length === 0 ? (
               <div className="text-muted-foreground py-8 text-center border rounded-lg bg-muted/10">

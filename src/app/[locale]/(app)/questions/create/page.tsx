@@ -10,7 +10,12 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { CreateQuestionView } from "./create-question-view";
 
-export default async function CreateQuestionPage() {
+export default async function CreateQuestionPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ collectionId?: string }>;
+}) {
+  const { collectionId } = await searchParams;
   const session = await auth();
   if (!session?.user) {
     redirect({ href: "/api/auth/signin", locale: "en" });
@@ -23,6 +28,12 @@ export default async function CreateQuestionPage() {
       OR: [{ isLocked: false }, { creatorId: session?.user?.id || "" }],
     },
     select: { id: true, name: true },
+  });
+
+  const availableTags = await db.tag.findMany({
+    select: { name: true },
+    orderBy: { questions: { _count: "desc" } },
+    take: 50,
   });
 
   return (
@@ -45,9 +56,11 @@ export default async function CreateQuestionPage() {
           </div>
         </div>
 
-        <CreateQuestionView 
-          availableCollections={availableCollections} 
+        <CreateQuestionView
+          availableCollections={availableCollections}
           createQuestionAction={createQuestion}
+          preselectedCollectionId={collectionId}
+          availableTags={availableTags.map((t) => t.name)}
         />
       </div>
     </div>

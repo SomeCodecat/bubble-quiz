@@ -3,13 +3,13 @@ import { db } from "@/lib/db";
 import { redirect } from "@/i18n/routing";
 import { getTranslations } from "next-intl/server";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Lock, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Plus, Lock, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { ExportButton } from "@/components/quiz/export-button";
-import { CreateCollectionDialog } from "./create-collection-dialog";
 import { getTrashedCollections } from "./actions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RenameCollectionDialog } from "./rename-collection-dialog";
+import { EditCollectionDialog } from "./rename-collection-dialog";
 import { CollectionRestoreButton } from "./collection-actions-client";
 
 export default async function CollectionsPage() {
@@ -20,13 +20,22 @@ export default async function CollectionsPage() {
     return null;
   }
 
+  const isAdmin = session.user.role === "ADMIN";
+  const where: any = { deletedAt: null };
+
+  if (!isAdmin) {
+    where.OR = [
+      { isLocked: false },
+      { creatorId: session.user.id },
+      { ownerId: session.user.id },
+    ];
+  }
+
   const collections = await db.collection.findMany({
-    where: {
-      deletedAt: null,
-      OR: [{ isLocked: false }, { creatorId: session.user.id }],
-    },
+    where,
     include: {
       creator: { select: { name: true, username: true } },
+      owner: { select: { name: true, username: true } },
       _count: { select: { questions: true } },
       questions: {
         include: {
@@ -71,14 +80,17 @@ export default async function CollectionsPage() {
             <h1 className="text-3xl font-bold">{t("title")}</h1>
             <p className="text-muted-foreground">{t("subtitle")}</p>
           </div>
-
           <div className="flex gap-2">
             <ExportButton
               data={exportData}
               filename="collections.json"
               label={t("export")}
             />
-            <CreateCollectionDialog existingTags={tagNames} />
+            <Link href="/questions/create?createCollection=true">
+              <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                <Plus className="mr-2 h-4 w-4" /> {t("newCollection")}
+              </Button>
+            </Link>
           </div>
         </div>
 
@@ -105,17 +117,27 @@ export default async function CollectionsPage() {
                         <CardTitle className="text-xl font-bold line-clamp-1">
                           {col.name}
                         </CardTitle>
+                        <div className="hidden md:flex items-center gap-1 text-[10px] font-mono text-muted-foreground/50 border border-border/50 px-1 rounded ml-2">
+                          #{col.shortCode}
+                        </div>
                         {col.creatorId === session.user.id && (
-                          <RenameCollectionDialog
+                          <EditCollectionDialog
                             collectionId={col.id}
                             currentName={col.name}
+                            currentDescription={col.description}
                           />
                         )}
                       </div>
                       {col.isLocked && (
                         <div className="flex items-center gap-1 text-xs text-amber-500 font-mono uppercase tracking-widest shrink-0">
                           <Lock className="h-3 w-3" />
-                          <span>Private</span>
+                          <span>
+                            {isAdmin && col.owner
+                              ? `${t("locked")} (${
+                                  col.owner.username || col.owner.name
+                                })`
+                              : t("private")}
+                          </span>
                         </div>
                       )}
                     </CardHeader>

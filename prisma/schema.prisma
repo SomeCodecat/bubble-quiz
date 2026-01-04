@@ -94,42 +94,38 @@ model VerificationToken {
 // Quiz Models
 
 model Question {
-  id            String   @id @default(uuid())
-  text          String
-  // Stored as JSON string or use a separate mapping if strict relations needed.
-  // For SQLite/Postgres compatibility, existing as JSON-like structure is fine, 
-  // but Prisma SQLite doesn't support native JSON type in older versions. 
-  // However, modern Prisma + SQLite supports String for JSON or similar.
-  // We'll use specific fields for simplicity and type safety.
-  
-  // Options will be stored as a JSON string for flexibility: ["A", "B", "C", "D"]
-  options       String   
-  correctIndex  Int
-  explanation   String?
+  id                    String   @id @default(cuid())
+  shortCode             String   @unique @default(cuid())
+  text                  String
+  options               String // JSON string of options array
+  correctIndex          Int
+  explanation           String?
+  difficulty            String   @default("medium") // easy, medium, hard, mixed
+  language              String   @default("en") // en, de
   
   // Tags
-  tags          QuestionTag[]
-  collections   QuestionCollection[]
-
-  creatorId     String?
-  creator       User?    @relation(fields: [creatorId], references: [id])
+  tags                  QuestionTag[]
+  category              String? // Main category (e.g. "History")
   
-  ownerId       String?
-  owner         User?    @relation("OwnedQuestions", fields: [ownerId], references: [id])
+  isLocked              Boolean  @default(false) // If true, only owner/admin can use/see
+  isPermanentlyPublic   Boolean  @default(false) // If true, stays public even if owner locks collection
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  deletedAt             DateTime? // Soft delete
   
-  isLocked      Boolean  @default(false) // If true, only creator can see/use
-  isPermanentlyPublic Boolean @default(false) // If true, cannot be locked by collection
+  creatorId             String
+  creator               User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
 
-  // Metadata
-  category      String?
-  deletedAt     DateTime? // For soft delete / archive
-  deletedById   String?
-  deletedBy     User?     @relation("DeletedQuestions", fields: [deletedById], references: [id])
+  // Explicit Owner Field (separate from Creator)
+  ownerId               String? // If null, it's public/system or follows creator. If set, this user "owns" the lock.
+  owner                 User?    @relation("OwnedQuestions", fields: [ownerId], references: [id])
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  deletedById           String?
+  deletedBy             User?    @relation("DeletedQuestions", fields: [deletedById], references: [id])
 
-  editLogs      QuestionEditLog[]
+  collections           QuestionCollection[]
+  editLogs              QuestionEditLog[]
 }
 
 model QuestionEditLog {
@@ -166,25 +162,26 @@ model QuestionTag {
 }
 
 model Collection {
-  id          String   @id @default(uuid())
+  id          String   @id @default(cuid())
+  shortCode   String   @unique @default(cuid())
   name        String
   description String?
   isLocked    Boolean  @default(false)
   
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  
   creatorId   String
-  creator     User     @relation(fields: [creatorId], references: [id])
+  creator     User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
 
   ownerId     String?
   owner       User?    @relation("OwnedCollections", fields: [ownerId], references: [id])
-  
-  questions   QuestionCollection[]
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  deletedAt   DateTime?
+
   deletedById String?
-  deletedBy   User?     @relation("DeletedCollections", fields: [deletedById], references: [id])
+  deletedBy   User?    @relation("DeletedCollections", fields: [deletedById], references: [id])
+
+  questions   QuestionCollection[]
 }
 
 model QuestionCollection {

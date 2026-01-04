@@ -4,6 +4,12 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { customAlphabet } from "nanoid";
+
+const nanoid = customAlphabet(
+  "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+  10
+);
 
 export async function toggleLock(questionId: string) {
   const session = await auth();
@@ -161,7 +167,7 @@ export async function importSingleQuestion(jsonString: string) {
         correctIndex: q.correctIndex,
         explanation: q.explanation,
         category: q.category,
-        creatorId: session.user.id,
+        creatorId: session.user.id as string,
         isLocked: false,
         tags: q.tags
           ? {

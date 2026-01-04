@@ -20,6 +20,7 @@ import { QuestionLockToggle } from "./question-lock-toggle";
 
 interface Question {
   id: string;
+  shortCode?: string;
   text: string;
   options: string[]; // Parsed JSON
   correctIndex: number;
@@ -42,7 +43,9 @@ interface Question {
   } | null;
   deletedAt?: Date | null;
   tags?: { tag: { name: string; icon: string | null } }[];
-  collections?: { collection: { id: string; name: string; isLocked: boolean } }[];
+  collections?: {
+    collection: { id: string; name: string; isLocked: boolean };
+  }[];
 }
 
 // ... imports
@@ -120,8 +123,6 @@ export function QuestionList({
     return matchText && matchTab && matchTags;
   });
 
-
-
   return (
     <div className="flex flex-col md:flex-row gap-6">
       {/* Sidebar */}
@@ -191,18 +192,18 @@ export function QuestionList({
                           className="h-4 w-4"
                         />
                         <span className="text-muted-foreground mx-1">
-                            {q.owner ? t("ownedBy") : t("createdBy")}
+                          {q.owner ? t("ownedBy") : t("createdBy")}
                         </span>
                         {(q.owner?.id || q.creatorId) === currentUserId ? (
-                           <span className="text-emerald-600 dark:text-emerald-400 font-bold text-[10px]">
-                              {t("me")}
-                           </span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold text-[10px]">
+                            {t("me")}
+                          </span>
                         ) : (
-                            <span>
-                              {(q.owner || q.creator)?.username ||
-                                (q.owner || q.creator)?.name ||
-                                t("unknown")}
-                            </span>
+                          <span>
+                            {(q.owner || q.creator)?.username ||
+                              (q.owner || q.creator)?.name ||
+                              t("unknown")}
+                          </span>
                         )}
                       </div>
                       {q.deletedAt && (
@@ -249,10 +250,14 @@ export function QuestionList({
                           <Lock className="h-3 w-3" />
                           <span>
                             {(() => {
-                                const lockingCollection = q.collections?.find(c => c.collection.isLocked)?.collection;
-                                return lockingCollection 
-                                    ? t("lockedByCollection", { name: lockingCollection.name }) 
-                                    : t("private");
+                              const lockingCollection = q.collections?.find(
+                                (c) => c.collection.isLocked
+                              )?.collection;
+                              return lockingCollection
+                                ? t("lockedByCollection", {
+                                    name: lockingCollection.name,
+                                  })
+                                : t("private");
                             })()}
                           </span>
                         </div>
@@ -286,7 +291,11 @@ export function QuestionList({
                                 questionId={q.id}
                                 isLocked={q.isLocked}
                                 isPermanentlyPublic={q.isPermanentlyPublic}
-                                lockedCollections={q.collections?.map(c => c.collection).filter(c => c.isLocked) || []}
+                                lockedCollections={
+                                  q.collections
+                                    ?.map((c) => c.collection)
+                                    .filter((c) => c.isLocked) || []
+                                }
                                 className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
                                 isAdmin={isAdmin}
                               />
@@ -319,23 +328,27 @@ export function QuestionList({
                 >
                   {/* Header / Lock Area */}
                   <div className="absolute top-2 left-2 z-10 pointer-events-none max-w-[calc(100%-2rem)]">
-                      <div className="bg-background/90 rounded-full shadow-sm backdrop-blur-md px-2 py-1 flex items-center gap-1.5 border border-border/50">
-                        {q.isLocked && <Lock className="h-3 w-3 text-amber-500 shrink-0" />}
-                        <div className="flex items-center gap-1 text-[10px] leading-none truncate">
-                           <span className="text-muted-foreground shrink-0">
-                               {q.owner ? t("ownedBy") : t("createdBy")}
-                           </span>
-                           {(q.owner?.id || q.creatorId) === currentUserId ? (
-                               <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                                  {t("me")}
-                               </span>
-                           ) : (
-                               <span className="truncate max-w-[80px]">
-                                 {(q.owner || q.creator)?.username || (q.owner || q.creator)?.name || t("unknown")}
-                               </span>
-                           )}
-                        </div>
+                    <div className="bg-background/90 rounded-full shadow-sm backdrop-blur-md px-2 py-1 flex items-center gap-1.5 border border-border/50">
+                      {q.isLocked && (
+                        <Lock className="h-3 w-3 text-amber-500 shrink-0" />
+                      )}
+                      <div className="flex items-center gap-1 text-[10px] leading-none truncate">
+                        <span className="text-muted-foreground shrink-0">
+                          {q.owner ? t("ownedBy") : t("createdBy")}
+                        </span>
+                        {(q.owner?.id || q.creatorId) === currentUserId ? (
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                            {t("me")}
+                          </span>
+                        ) : (
+                          <span className="truncate max-w-[80px]">
+                            {(q.owner || q.creator)?.username ||
+                              (q.owner || q.creator)?.name ||
+                              t("unknown")}
+                          </span>
+                        )}
                       </div>
+                    </div>
                   </div>
                   {q.isPermanentlyPublic && (
                     <div className="absolute top-2 right-2 z-10 pointer-events-none group-hover:opacity-0 transition-opacity">
@@ -374,7 +387,11 @@ export function QuestionList({
                             questionId={q.id}
                             isLocked={q.isLocked}
                             isPermanentlyPublic={q.isPermanentlyPublic}
-                            lockedCollections={q.collections?.map(c => c.collection).filter(c => c.isLocked) || []}
+                            lockedCollections={
+                              q.collections
+                                ?.map((c) => c.collection)
+                                .filter((c) => c.isLocked) || []
+                            }
                             className="h-8 w-8 rounded-full bg-background/50 hover:bg-background shadow-sm backdrop-blur-sm"
                             isAdmin={isAdmin}
                           />
@@ -443,16 +460,18 @@ export function QuestionList({
                         className="h-4 w-4"
                       />
                       <span className="text-muted-foreground mx-1">
-                          {q.owner ? t("ownedBy") : t("createdBy")}
+                        {q.owner ? t("ownedBy") : t("createdBy")}
                       </span>
                       {(q.owner?.id || q.creatorId) === currentUserId ? (
-                           <span className="text-emerald-600 dark:text-emerald-400 font-bold text-[10px]">
-                              {t("me")}
-                           </span>
+                        <span className="text-emerald-600 dark:text-emerald-400 font-bold text-[10px]">
+                          {t("me")}
+                        </span>
                       ) : (
-                          <span>
-                            {(q.owner || q.creator)?.username || (q.owner || q.creator)?.name || "Unknown"}
-                          </span>
+                        <span>
+                          {(q.owner || q.creator)?.username ||
+                            (q.owner || q.creator)?.name ||
+                            "Unknown"}
+                        </span>
                       )}
                       {q.deletedAt && (
                         <div className="flex items-center gap-1 text-destructive ml-2">
@@ -481,16 +500,32 @@ export function QuestionList({
                     </CardTitle>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    {/* ShortCode Badge */}
+                    <div className="hidden md:flex items-center gap-1 text-[10px] font-mono text-muted-foreground/50 border border-border/50 px-1 rounded">
+                      #{q.shortCode}
+                    </div>
+
                     {q.isLocked && (
                       <div className="flex items-center gap-1 text-[10px] text-amber-500 font-mono uppercase tracking-widest">
                         <Lock className="h-3 w-3" />
                         <span>
-                            {(() => {
-                                const lockingCollection = q.collections?.find(c => c.collection.isLocked)?.collection;
-                                return lockingCollection 
-                                    ? t("lockedByCollection", { name: lockingCollection.name }) 
-                                    : t("private"); // Or "Private Group Only" if we want to keep that text
-                            })()}
+                          {(() => {
+                            const lockingCollection = q.collections?.find(
+                              (c) => c.collection.isLocked
+                            )?.collection;
+                            if (lockingCollection) {
+                              return t("lockedByCollection", {
+                                name: lockingCollection.name,
+                              });
+                            }
+                            // If locked but no locking collection, it's personally locked or admin locked
+                            if (isAdmin && q.owner) {
+                              return `${t("locked")} (${
+                                q.owner.username || q.owner.name || "Unknown"
+                              })`;
+                            }
+                            return t("private");
+                          })()}
                         </span>
                       </div>
                     )}
@@ -514,7 +549,11 @@ export function QuestionList({
                         questionId={q.id}
                         isLocked={q.isLocked}
                         isPermanentlyPublic={q.isPermanentlyPublic}
-                        lockedCollections={q.collections?.map(c => c.collection).filter(c => c.isLocked) || []}
+                        lockedCollections={
+                          q.collections
+                            ?.map((c) => c.collection)
+                            .filter((c) => c.isLocked) || []
+                        }
                         className="h-8 w-8 text-muted-foreground hover:text-foreground"
                         isAdmin={isAdmin}
                       />

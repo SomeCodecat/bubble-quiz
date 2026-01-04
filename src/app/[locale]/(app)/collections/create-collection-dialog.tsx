@@ -147,7 +147,7 @@ Output only raw JSON.
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div className="grid gap-2">
-                  <Label>{t("count")}</Label>
+                  <Label>{t("countLabel")}</Label>
                   <Input
                     type="number"
                     value={count}

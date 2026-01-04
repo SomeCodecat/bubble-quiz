@@ -3,6 +3,12 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
+import { customAlphabet } from "nanoid";
+
+const nanoid = customAlphabet(
+  "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+  10
+);
 
 export async function createCollection(formData: FormData) {
   const session = await auth();
@@ -27,6 +33,14 @@ export async function createCollection(formData: FormData) {
 }
 
 export async function renameCollection(collectionId: string, newName: string) {
+  return updateCollection(collectionId, newName, undefined);
+}
+
+export async function updateCollection(
+  collectionId: string,
+  name?: string,
+  description?: string
+) {
   const session = await auth();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
@@ -40,16 +54,38 @@ export async function renameCollection(collectionId: string, newName: string) {
     throw new Error("Collection not found");
   }
 
-  if (collection.creatorId !== session.user.id) {
+  if (
+    collection.creatorId !== session.user.id &&
+    session.user.role !== "ADMIN"
+  ) {
     throw new Error("Unauthorized");
+  }
+
+  // Check for duplicate name if name is being changed
+  if (name && name !== collection.name) {
+    const existing = await db.collection.findFirst({
+      where: {
+        name,
+        creatorId: session.user.id,
+        deletedAt: null,
+        NOT: { id: collectionId },
+      },
+    });
+    if (existing) {
+      throw new Error("A collection with this name already exists");
+    }
   }
 
   await db.collection.update({
     where: { id: collectionId },
-    data: { name: newName },
+    data: {
+      ...(name !== undefined && { name }),
+      ...(description !== undefined && { description }),
+    },
   });
 
   revalidatePath("/collections");
+  revalidatePath(`/collections/${collectionId}`);
   return { success: true };
 }
 
@@ -393,6 +429,44 @@ export async function removeQuestionFromCollection(
 
   revalidatePath(`/collections/${collectionId}`);
   return { success: true };
+}
+
+export async function addQuestionsToCollection(
+  collectionId: string,
+  questionIds: string[]
+) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Unauthorized" };
+
+  const collection = await db.collection.findUnique({
+    where: { id: collectionId },
+  });
+
+  if (!collection) return { error: "Collection not found" };
+
+  if (
+    collection.creatorId !== session.user.id &&
+    session.user.role !== "ADMIN" &&
+    collection.isLocked
+  ) {
+    return { error: "Forbidden: Collection is locked" };
+  }
+
+  // Iterate and add. Re-using the single-add logic ensures all rules are applied correctly.
+  for (const qId of questionIds) {
+    try {
+      await addQuestionToCollection(collectionId, qId);
+    } catch (e) {
+      // Ignore individual errors (like already exists)
+      console.error(
+        `Failed to add question ${qId} to collection ${collectionId}`,
+        e
+      );
+    }
+  }
+
+  revalidatePath(`/collections/${collectionId}`);
+  return { success: true, count: questionIds.length };
 }
 
 export async function getAvailableCollections() {

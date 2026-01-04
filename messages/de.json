@@ -13,7 +13,34 @@
     "register": "Konto Registrieren",
     "signIn": "Anmelden",
     "signOut": "Abmelden",
-    "connecting": "Verbinde zum Server..."
+    "connecting": "Verbinde zum Server...",
+    "competeTitle": "Wettkampf",
+    "competeDesc": "Tritt aktiven Lobbys über die Sidebar bei und steige in den Rängen auf.",
+    "createTitle": "Erstellen",
+    "createDesc": "Passe deine eigenen Spiele mit einzigartigen Sammlungen an.",
+    "learnTitle": "Lernen",
+    "learnDesc": "Durchsuche und trage zu unserer wachsenden Fragendatenbank bei.",
+    "welcomeBack": "Willkommen zurück, {name}!",
+    "introText": "BubbleQuiz ist deine Echtzeit-Arena für Wissen und Geschwindigkeit.",
+    "sidebarHint": "Nutze die Sidebar, um aktiven Räumen beizutreten, dein eigenes Quiz zu hosten oder deine Sammlungen zu verwalten.",
+    "statsTitle": "Server Arena Statistiken",
+    "totalUsers": "Benutzer Gesamt",
+    "onlineNow": "Online Jetzt",
+    "totalQuestions": "Fragen Gesamt",
+    "totalCollections": "Sammlungen",
+    "activeGames": "Aktive Spiele"
+  },
+  "Auth": {
+    "login": "Anmelden",
+    "register": "Konto erstellen",
+    "emailLabel": "E-Mail oder Benutzername",
+    "passwordLabel": "Passwort",
+    "invalidCredentials": "Ungültige E-Mail oder Passwort",
+    "signingIn": "Anmeldung...",
+    "noAccount": "Noch kein Konto?",
+    "hasAccount": "Hast du bereits ein Konto?",
+    "authentik": "Mit Authentik anmelden",
+    "or": "Oder"
   },
   "Sidebar": {
     "questions": "Fragen",
@@ -21,7 +48,13 @@
     "profile": "Profil",
     "game": "Spiel",
     "admin": "Admin",
-    "subtitle": "Freunde Edition"
+    "create": "Erstellen",
+    "subtitle": "Freunde Edition",
+    "lobby": "Lobby",
+    "management": "Verwaltung",
+    "account": "Konto",
+    "signIn": "Anmelden",
+    "register": "Registrieren"
   },
   "Questions": {
     "title": "Fragen Menü",
@@ -76,7 +109,15 @@
     "confirmMakePublic": "Öffentlich machen",
     "cancel": "Abbrechen",
     "lockedByCollection": "Gesperrt durch Sammlung: {name}",
-    "permanentlyPublic": "Dauerhaft öffentlich"
+    "permanentlyPublic": "Dauerhaft öffentlich",
+    "createCollectionToggle": "Neue Sammlung für diese Frage erstellen",
+    "newCollectionName": "Name der neuen Sammlung",
+    "newCollection": "Neue Sammlung",
+    "locked": "Gesperrt",
+    "name": "Name",
+    "description": "Beschreibung",
+    "placeholderName": "z.B. Mein Quiz",
+    "placeholderDesc": "Optional..."
   },
   "Room": {
     "round": "RUNDE",
@@ -85,6 +126,7 @@
     "results": "ERGEBNISSE",
     "startGame": "STARTEN",
     "endGame": "BEENDEN",
+    "leaveRoom": "Raum verlassen",
     "hostWaiting": "Warte auf Host...",
     "players": "Spieler",
     "joinRoomTitle": "Raum {code} beitreten",
@@ -119,6 +161,8 @@
     },
     "deleteLobbyTitle": "Lobby löschen?",
     "deleteLobbyConfirm": "Bist du sicher, dass du diese Lobby löschen möchtest? Alle Spieler werden getrennt.",
+    "endGameTitle": "Spiel vorzeitig beenden?",
+    "endGameConfirm": "Bist du sicher, dass du diese Spielsitzung für alle Spieler beenden möchtest?",
     "cancel": "Abbrechen",
     "delete": "Löschen"
   },
@@ -145,6 +189,10 @@
     "registeredUsers": "Registrierte Benutzer",
     "joined": "Beigetreten",
     "noUsers": "Keine Benutzer gefunden.",
+    "deleteUser": "Benutzer löschen",
+    "userDeleted": "Benutzer erfolgreich gelöscht",
+    "userUpdated": "Benutzerrolle aktualisiert",
+    "errorOccurred": "Ein Fehler ist aufgetreten",
     "systemSettings": "Systemeinstellungen",
     "settingsDesc": "Globale Spieleinstellungen kommen hier hin.",
     "role": "Rolle",
@@ -195,11 +243,61 @@
     "successMsg": "Erfolg! {count} Fragen importiert.",
     "copyPrompt": "Kopieren",
     "promptCopied": "Prompt in die Zwischenablage kopiert!",
-    "errorPrefix": "Fehler: "
+    "errorPrefix": "Fehler: ",
+    "difficulty": "Schwierigkeit",
+    "easy": "Leicht",
+    "medium": "Mittel",
+    "hard": "Schwer",
+    "mixed": "Gemischt",
+    "language": "Sprache",
+    "tabs": {
+      "ai": "KI & Import",
+      "manual": "Manuelle Eingabe"
+    },
+    "step1": {
+      "title": "Schritt 1: Prompt Generieren",
+      "description": "Konfiguriere & kopiere diesen Prompt zu ChatGPT/Claude."
+    },
+    "step2": {
+      "title": "Schritt 2: Einfügen & Vorschau",
+      "description": "Füge die JSON-Antwort hier ein für Vorschau und Import."
+    },
+    "config": {
+      "createMode": "Als neue Sammlung erstellen",
+      "newCollectionName": "Name der neuen Sammlung",
+      "newCollectionPlaceholder": "Name der neuen Sammlung (oder aus JSON)",
+      "existingMode": "Zu bestehenden Sammlungen hinzufügen",
+      "noCollections": "Keine Sammlungen verfügbar.",
+      "emptySelection": "Keine Auswahl: Fragen werden als <strong>einzelne Elemente</strong> erstellt."
+    },
+    "preview": {
+      "button": "Inhalt Vorschau",
+      "placeholder": "JSON hier einfügen...",
+      "clear": "Löschen / JSON bearbeiten",
+      "questionsCount": "Fragen ({count})",
+      "confirm": "Bestätigen & {count} Fragen importieren",
+      "invalidJson": "Ungültiges JSON-Format",
+      "success": "JSON erkannt! Bitte unten überprüfen.",
+      "cancel": "Abbrechen"
+    },
+    "manual": {
+      "singleQuestion": "Einzelne Frage",
+      "newCollection": "Neue Sammlung",
+      "createCollectionTitle": "Sammlung Erstellen",
+      "createCollectionDesc": "Erstelle eine neue leere Sammlung.",
+      "creating": "Erstelle...",
+      "create": "Erstellen",
+      "success": "Sammlung erstellt",
+      "failed": "Fehlgeschlagen"
+    }
   },
   "Collections": {
     "title": "Sammlungen",
     "newCollection": "Neue Sammlung",
+    "createQuestion": "Frage Erstellen",
+    "edit": "Bearbeiten",
+    "editCollection": "Sammlung Bearbeiten",
+    "addQuestionsCount": "{count} Fragen Hinzufügen",
     "createDialogTitle": "Sammlung Erstellen",
     "createDialogDesc": "Gruppiere deine Fragen in einer Sammlung.",
     "name": "Name",
@@ -235,6 +333,7 @@
     "importJsonBtn": "JSON Importieren",
     "importing": "Importiert...",
     "saving": "Speichert...",
+    "save": "Speichern",
     "copiedClipboard": "In Zwischenablage kopiert",
     "created": "Sammlung erstellt",
     "createError": "Fehler beim Erstellen der Sammlung",
@@ -256,7 +355,7 @@
     "deleteConfirm": "Bist du sicher, dass du diese Sammlung löschen möchtest?",
     "deleted": "Sammlung gelöscht",
     "deleteError": "Fehler beim Löschen der Sammlung",
-    "questionAdded": "Frage zur Sammlung hinzugefügt",
+    "questionAdded": "{count} Fragen zur Sammlung hinzugefügt",
     "addError": "Fehler beim Hinzufügen der Frage",
     "export": "Exportieren",
     "active": "Aktiv",

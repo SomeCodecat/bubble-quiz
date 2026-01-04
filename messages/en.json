@@ -13,7 +13,34 @@
     "register": "Register Account",
     "signIn": "Sign In",
     "signOut": "Sign Out",
-    "connecting": "Connecting to Server..."
+    "connecting": "Connecting to Server...",
+    "competeTitle": "Compete",
+    "competeDesc": "Join active lobbies from the sidebar and climb the ranks.",
+    "createTitle": "Create",
+    "createDesc": "Customize your own games with unique collections.",
+    "learnTitle": "Learn",
+    "learnDesc": "Browse and contribute to our growing question database.",
+    "welcomeBack": "Welcome back, {name}!",
+    "introText": "BubbleQuiz is your real-time arena for knowledge and speed.",
+    "sidebarHint": "Use the sidebar to join active rooms, host your own quiz, or manage your collections.",
+    "statsTitle": "Server Arena Stats",
+    "totalUsers": "Total Users",
+    "onlineNow": "Online Now",
+    "totalQuestions": "Global Questions",
+    "totalCollections": "Public Collections",
+    "activeGames": "Active Games"
+  },
+  "Auth": {
+    "login": "Sign In",
+    "register": "Create Account",
+    "emailLabel": "Email or Username",
+    "passwordLabel": "Password",
+    "invalidCredentials": "Invalid email or password",
+    "signingIn": "Signing in...",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "authentik": "Sign in with Authentik",
+    "or": "Or"
   },
   "Sidebar": {
     "questions": "Questions",
@@ -21,7 +48,13 @@
     "profile": "Profile",
     "game": "Game",
     "admin": "Admin",
-    "subtitle": "Friend Group Edition"
+    "create": "Create",
+    "subtitle": "Friend Group Edition",
+    "lobby": "Lobby",
+    "management": "Management",
+    "account": "Account",
+    "signIn": "Sign In",
+    "register": "Register"
   },
   "Questions": {
     "title": "Question Menu",
@@ -76,7 +109,15 @@
     "confirmMakePublic": "Make Public",
     "cancel": "Cancel",
     "lockedByCollection": "Locked by collection: {name}",
-    "permanentlyPublic": "Permanently Public"
+    "permanentlyPublic": "Permanently Public",
+    "createCollectionToggle": "Create new collection for this question",
+    "newCollectionName": "New Collection Name",
+    "newCollection": "New Collection",
+    "locked": "Locked",
+    "name": "Name",
+    "description": "Description",
+    "placeholderName": "e.g. My Quiz",
+    "placeholderDesc": "Optional..."
   },
   "Room": {
     "round": "ROUND",
@@ -85,6 +126,7 @@
     "results": "RESULTS",
     "startGame": "START GAME",
     "endGame": "END",
+    "leaveRoom": "Leave Room",
     "hostWaiting": "Waiting for Host to Start...",
     "players": "Players",
     "joinRoomTitle": "Join Room {code}",
@@ -119,6 +161,8 @@
     },
     "deleteLobbyTitle": "Delete Lobby?",
     "deleteLobbyConfirm": "Are you sure you want to delete this lobby? All players will be disconnected.",
+    "endGameTitle": "End Game Early?",
+    "endGameConfirm": "Are you sure you want to end this game session for all players?",
     "cancel": "Cancel",
     "delete": "Delete"
   },
@@ -151,6 +195,10 @@
     "games": "Games",
     "score": "Score",
     "noUsername": "No username",
+    "deleteUser": "Delete User",
+    "userDeleted": "User deleted successfully",
+    "userUpdated": "User role updated",
+    "errorOccurred": "An error occurred",
     "demote": "Demote",
     "promote": "Promote"
   },
@@ -195,11 +243,61 @@
     "successMsg": "Success! Imported {count} questions.",
     "copyPrompt": "Buttons copied!",
     "promptCopied": "Prompt copied to clipboard!",
-    "errorPrefix": "Error: "
+    "errorPrefix": "Error: ",
+    "difficulty": "Difficulty",
+    "easy": "Easy",
+    "medium": "Medium",
+    "hard": "Hard",
+    "mixed": "Mixed",
+    "language": "Language",
+    "tabs": {
+      "ai": "AI & Import",
+      "manual": "Manual Entry"
+    },
+    "step1": {
+      "title": "Step 1: Generate Prompt",
+      "description": "Configure & copy this prompt to ChatGPT/Claude."
+    },
+    "step2": {
+      "title": "Step 2: Paste & Preview",
+      "description": "Paste the JSON response here to preview and import."
+    },
+    "config": {
+      "createMode": "Create as New Collection",
+      "newCollectionName": "New Collection Name",
+      "newCollectionPlaceholder": "New Collection Name (or from JSON)",
+      "existingMode": "Add to Existing Collection(s)",
+      "noCollections": "No collections available.",
+      "emptySelection": "Selections empty: Questions will be created as <strong>separate items</strong>."
+    },
+    "preview": {
+      "button": "Preview Content",
+      "placeholder": "Paste JSON here...",
+      "clear": "Clear / Edit JSON",
+      "questionsCount": "Questions ({count})",
+      "confirm": "Confirm & Import {count} Questions",
+      "invalidJson": "Invalid JSON format",
+      "success": "JSON Parsed! Please review below.",
+      "cancel": "Cancel"
+    },
+    "manual": {
+      "singleQuestion": "Single Question",
+      "newCollection": "New Collection",
+      "createCollectionTitle": "Create Collection",
+      "createCollectionDesc": "Create a new empty collection.",
+      "creating": "Creating...",
+      "create": "Create",
+      "success": "Collection created",
+      "failed": "Failed"
+    }
   },
   "Collections": {
     "title": "Collections",
     "newCollection": "New Collection",
+    "createQuestion": "Create Question",
+    "edit": "Edit",
+    "editCollection": "Edit Collection",
+    "addQuestionsCount": "Add {count} Questions",
     "createDialogTitle": "Create Collection",
     "createDialogDesc": "Group your questions into a collection.",
     "name": "Name",
@@ -235,6 +333,7 @@
     "importJsonBtn": "Import JSON",
     "importing": "Importing...",
     "saving": "Saving...",
+    "save": "Save Changes",
     "copiedClipboard": "Copied to clipboard",
     "created": "Collection created",
     "createError": "Failed to create collection",
@@ -256,7 +355,7 @@
     "deleteConfirm": "Are you sure you want to delete this collection?",
     "deleted": "Collection deleted",
     "deleteError": "Failed to delete collection",
-    "questionAdded": "Question added to collection",
+    "questionAdded": "{count} questions added to collection",
     "addError": "Failed to add question",
     "export": "Export",
     "active": "Active",

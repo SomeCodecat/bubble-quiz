@@ -28,11 +28,19 @@ export default async function QuestionsPage({ searchParams }: Props) {
   }
 
   // Fetch ACTIVE questions
+  const isAdmin = session.user.role === "ADMIN";
+  const where: any = { deletedAt: null };
+
+  if (!isAdmin) {
+    where.OR = [
+      { isLocked: false },
+      { creatorId: session.user.id },
+      { ownerId: session.user.id },
+    ];
+  }
+
   const activeQuestions = await db.question.findMany({
-    where: {
-      deletedAt: null,
-      OR: [{ isLocked: false }, { creatorId: session.user.id }],
-    },
+    where,
     include: {
       creator: {
         select: { name: true, username: true },
